@@ -21,11 +21,13 @@ Mark tasks complete by changing [ ] to [x].
 2. Create directory structure per tech spec
 3. Create XDG directory helpers (config, state, data, cache paths)
 4. Add basic CLI entry point with command routing stub
+5. Load environment variables from `.env` file (Bun does this automatically)
 
 **Files to Create**:
 - `package.json`, `tsconfig.json`
 - `src/index.ts` (entry point with arg parsing stub)
 - `src/config/paths.ts` (XDG path helpers)
+- `.env` already exists with `GROQ_API_KEY`
 
 **Tests**:
 - [ ] XDG paths resolve correctly with default env vars
@@ -467,7 +469,7 @@ Mark tasks complete by changing [ ] to [x].
 2. Check for: bun, parecord, wl-copy, wtype, notify-send, hyprctl
 3. Report version info for found tools
 4. Report installation instructions for missing tools
-5. Check for GROQ_API_KEY environment variable
+5. Check for GROQ_API_KEY in `.env` file or environment
 
 **Files to Create/Modify**:
 - `src/doctor/index.ts`
@@ -530,7 +532,7 @@ Mark tasks complete by changing [ ] to [x].
 | 3a | (none) |
 | 3b | (none) |
 | 4 | parecord (pulseaudio-utils) |
-| 5 | GROQ_API_KEY env var |
+| 5 | GROQ_API_KEY in `.env` file |
 | 6a | wl-copy (wl-clipboard) |
 | 6b | wtype |
 | 7 | notify-send (libnotify) |
