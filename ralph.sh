@@ -27,8 +27,8 @@ not necessarily the first in the list.
 3. Append your progress to the progress.txt file.
 4. Make a git commit of that feature.
 ONLY WORK ON A SINGLE FEATURE.
-If, while implementing the feature, you notice that all work \
-is complete, output <promise>COMPLETE</promise>.
+If ALL tasks in gameplan.md are marked [x] complete (not just the current one), \
+output <promise>COMPLETE</promise>. Otherwise, continue to the next uncompleted task.
 ")
 
   echo "$result"
