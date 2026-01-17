@@ -253,7 +253,7 @@ Mark tasks complete by changing [ ] to [x].
 - [x] Record audio → transcription returns text
 - [x] Transcription printed to stdout on `whispertui stop`
 - [x] Clear error message if GROQ_API_KEY not set in `.env` or environment
-- [ ] API errors reported via notify-send
+- [x] API errors reported via notify-send
 
 ---
 
@@ -330,14 +330,14 @@ Mark tasks complete by changing [ ] to [x].
 - Integrate throughout daemon handlers
 
 **Tests**:
-- [ ] Notifications appear for key events
-- [ ] Missing notify-send handled gracefully
-- [ ] Notifications can be disabled via config
+- [x] Notifications appear for key events
+- [x] Missing notify-send handled gracefully
+- [x] Notifications can be disabled via config
 
 **Acceptance Criteria**:
-- [ ] "Recording started" notification on start
-- [ ] "Transcription complete" notification with preview
-- [ ] Error notifications show actionable messages
+- [x] "Recording started" notification on start
+- [x] "Transcription complete" notification with preview
+- [x] Error notifications show actionable messages
 
 ---
 

@@ -45,6 +45,12 @@ import {
   WtypeNotFoundError,
   TyperError,
 } from "../output/typer.ts";
+import {
+  Notifier,
+  createNotifier,
+  extractNotificationConfig,
+  type NotificationConfig,
+} from "../notify/index.ts";
 import type { Config } from "../config/schema.ts";
 
 /** Commands that can be sent to the daemon */
@@ -83,6 +89,7 @@ export interface DaemonServerOptions {
   recordingConfig?: RecordingConfig;
   transcriptionConfig?: TranscriptionConfig;
   outputConfig?: OutputConfig;
+  notificationConfig?: NotificationConfig;
 }
 
 /** Server lifecycle events */
@@ -193,6 +200,11 @@ const DEFAULT_OUTPUT_CONFIG: OutputConfig = {
   pasteMethod: "wtype",
 };
 
+/** Default notification config when none provided */
+const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
+  enabled: true,
+};
+
 /**
  * DaemonServer - Unix socket server with JSON protocol
  */
@@ -205,6 +217,7 @@ export class DaemonServer {
   private recorder: AudioRecorder;
   private transcriber: GroqClient;
   private outputConfig: OutputConfig;
+  private notifier: Notifier;
   private currentAudioPath: string | null = null;
 
   constructor(options?: DaemonServerOptions) {
@@ -220,6 +233,10 @@ export class DaemonServer {
 
     this.outputConfig = options?.outputConfig ??
       (options?.config ? extractOutputConfig(options.config) : DEFAULT_OUTPUT_CONFIG);
+
+    const notificationConfig = options?.notificationConfig ??
+      (options?.config ? extractNotificationConfig(options.config) : DEFAULT_NOTIFICATION_CONFIG);
+    this.notifier = createNotifier(notificationConfig);
   }
 
   /** Get the state machine instance */
@@ -311,6 +328,9 @@ export class DaemonServer {
       throw error;
     }
 
+    // Send recording started notification
+    this.notifier.notifyRecordingStarted();
+
     // Start recording in background
     this.recorder.start()
       .then((audioPath) => {
@@ -327,6 +347,7 @@ export class DaemonServer {
           message = error.message;
         }
         this.stateMachine.send({ type: "error", message });
+        this.notifier.notifyError(message);
         this.currentAudioPath = null;
       });
 
@@ -372,6 +393,9 @@ export class DaemonServer {
           await this.handleOutput(text);
 
           this.stateMachine.send({ type: "transcription_complete", text });
+
+          // Send transcription complete notification
+          this.notifier.notifyTranscriptionComplete(text);
         } catch (error) {
           // Transcription failed
           let message = "Transcription failed";
@@ -385,6 +409,7 @@ export class DaemonServer {
             message = error.message;
           }
           this.stateMachine.send({ type: "error", message });
+          this.notifier.notifyError(message);
         }
       })
       .catch((error) => {
@@ -396,6 +421,7 @@ export class DaemonServer {
           message = error.message;
         }
         this.stateMachine.send({ type: "error", message });
+        this.notifier.notifyError(message);
         this.currentAudioPath = null;
       });
 
@@ -427,7 +453,7 @@ export class DaemonServer {
       } else if (clipboardError instanceof ClipboardError) {
         clipboardMessage = clipboardError.message;
       }
-      // TODO: Send notification about clipboard failure (Step 7)
+      this.notifier.notifyError(clipboardMessage);
       console.error(clipboardMessage);
     }
 
@@ -443,11 +469,11 @@ export class DaemonServer {
         } else if (typeError instanceof TyperError) {
           typeMessage = typeError.message;
         }
-        // TODO: Send notification about wtype failure (Step 7)
-        console.error(typeMessage);
         if (clipboardSuccess) {
-          console.error("Text is available in clipboard");
+          typeMessage += " (text available in clipboard)";
         }
+        this.notifier.notifyError(typeMessage);
+        console.error(typeMessage);
       }
     }
     // If paste_method is clipboard-only or auto_paste is false,
@@ -602,6 +628,11 @@ export class DaemonServer {
   /** Get output config (for testing) */
   getOutputConfig(): OutputConfig {
     return this.outputConfig;
+  }
+
+  /** Get notifier instance (for testing) */
+  getNotifier(): Notifier {
+    return this.notifier;
   }
 }
 

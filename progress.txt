@@ -137,20 +137,43 @@ Each Claude instance should read this at the start and append notes at the end.
 - Config option `paste_method: "wtype" | "clipboard-only"` controls behavior
 - 12 new tests covering typer module and error handling
 
+### 2026-01-17: Step 7 - Notifications
+
+- Created `src/notify/index.ts` with `sendNotification()` function using notify-send subprocess
+- Custom error classes: `NotifySendNotFoundError` (with install instructions for Arch/Ubuntu/Fedora), `NotificationError`
+- `NotificationOptions` interface supports: title, body, urgency (low/normal/critical), timeout, icon, appName
+- Urgency maps directly to notify-send `--urgency` flag
+- Timeout specified in milliseconds maps to `--expire-time`
+- `checkNotifySendAvailable()` helper to verify notify-send is installed
+- `Notifier` class wraps notification sending with config awareness:
+  - Respects `enabled` config option - silently skips if disabled
+  - Caches notify-send availability check - only checks once
+  - All notification methods are best-effort - errors logged but not thrown
+- Convenience methods on Notifier: `notifyRecordingStarted()`, `notifyTranscriptionComplete(text)`, `notifyError(message)`
+- `notifyTranscriptionComplete()` truncates text preview to 100 chars with "..." suffix
+- `extractNotificationConfig()` extracts notification config from app Config object
+- Integrated notifications into `DaemonServer`:
+  - Recording started notification sent in `handleStart()`
+  - Transcription complete notification sent after successful transcription
+  - Error notifications sent for: recording failures, transcription failures, clipboard failures, wtype failures
+  - wtype failure notification includes "(text available in clipboard)" when clipboard succeeded
+- Config schema already had `notifications.enabled` defined from earlier work
+- 31 new tests covering notification module and Notifier class
+
 ---
 
 ## Current State
 
-- Project status: Step 6b complete
-- Last completed task: Step 6b - Auto-Type Output
+- Project status: Step 7 complete
+- Last completed task: Step 7 - Notifications
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 7 - Notifications
-- Need to implement notify-send wrapper for desktop notifications
-- Add notifications for: recording started, transcription complete, errors
-- Make notifications configurable (on/off via config)
-- This will also enable the deferred Step 5 acceptance criteria: "API errors reported via notify-send"
+- Next task: Step 8 - History Storage
+- Need to implement history writer (timestamped files)
+- Implement history reader (list, limit)
+- Add history CLI command
+- Implement history pruning (max_entries)
