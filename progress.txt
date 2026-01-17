@@ -1,0 +1,24 @@
+# WhisperTUI Progress & Learnings
+
+This file captures learnings and notes across Ralph Loop iterations.
+Each Claude instance should read this at the start and append notes at the end.
+
+---
+
+## Learnings
+
+(Notes from previous iterations go here)
+
+---
+
+## Current State
+
+- Project status: Not started
+- Last completed task: None
+- Current blockers: None
+
+---
+
+## Notes for Next Iteration
+
+(Write observations, decisions made, gotchas discovered, or suggestions for the next iteration)
