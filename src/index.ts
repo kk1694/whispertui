@@ -21,6 +21,7 @@ import {
   type HistoryEntry,
 } from "./history/index.ts";
 import { launchTui } from "./ui/index.tsx";
+import { runDoctorChecks, formatDoctorResult } from "./doctor/index.ts";
 
 const VERSION = "0.1.0";
 
@@ -327,9 +328,15 @@ async function main(): Promise<void> {
     case "tui":
       await launchTui();
       break;
-    case "doctor":
-      console.log("doctor: not implemented yet");
+    case "doctor": {
+      const doctorResult = await runDoctorChecks();
+      console.log(formatDoctorResult(doctorResult));
+      // Exit with non-zero if required dependencies are missing
+      if (!doctorResult.requiredOk) {
+        process.exit(1);
+      }
       break;
+    }
     default:
       console.error(`Unknown command: ${command}`);
       console.error("Run 'whispertui --help' for usage information");

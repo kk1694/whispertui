@@ -256,20 +256,43 @@ Each Claude instance should read this at the start and append notes at the end.
 - 29 new tests covering History component and App integration
 - Total: 338 tests passing
 
+### 2026-01-17: Step 12a - Doctor Command
+
+- Created `src/doctor/index.ts` with dependency checking functions
+- `DependencyCheck` interface: name, description, status (ok/missing/error), version, installHint, required
+- `EnvVarCheck` interface for environment variable checks
+- Individual check functions for each dependency: checkBun, checkParecord, checkWlCopy, checkWtype, checkNotifySend, checkHyprctl
+- Each check function uses spawn to run version commands and parses output
+- `runCommand()` helper to execute commands and capture stdout/stderr/exit code
+- `checkGroqApiKey()` checks for env var presence (doesn't expose actual value)
+- `runDoctorChecks()` runs all checks in parallel with Promise.all
+- Returns `DoctorResult` with allOk (all pass) and requiredOk (required only pass)
+- Formatting functions with ANSI color codes: green checkmark for ok, red X for missing, yellow ! for error
+- Install hints include package manager commands for Arch, Ubuntu/Debian, Fedora
+- Optional dependencies marked with [optional] tag in output
+- CLI wired up with `doctor` command in src/index.ts
+- Exit code 1 if required dependencies missing, 0 otherwise
+- parecord version parsing: extract first line only (pacat outputs multi-line)
+- wtype has no --version flag, uses --help to detect presence
+- hyprctl version parsing: extracts Tag or version number from output
+- 25 new tests covering all check functions and formatting
+- Total: 363 tests passing
+
 ---
 
 ## Current State
 
-- Project status: Step 11 complete
-- Last completed task: Step 11 - TUI History Browser
+- Project status: Step 12a complete
+- Last completed task: Step 12a - Doctor Command
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 12a - Doctor Command
-- Need to create doctor module to check external dependencies
-- Check for: bun, parecord, wl-copy, wtype, notify-send, hyprctl
-- Report version info and installation instructions
-- Check for GROQ_API_KEY presence
+- Next task: Step 12b - Hyprland Integration & Polish
+- Create Hyprland startup script
+- Document keybind configuration in README
+- Add `config --edit` command to open config in $EDITOR
+- Final error handling review
+- Add graceful degradation for missing optional dependencies

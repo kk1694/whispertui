@@ -476,17 +476,17 @@ Mark tasks complete by changing [ ] to [x].
 - `src/index.ts` (add doctor command)
 
 **Tests**:
-- [ ] Doctor detects present dependencies with checkmark
-- [ ] Doctor detects missing dependencies with X
-- [ ] Doctor shows version for each tool
-- [ ] Doctor shows install command for missing tools
-- [ ] Doctor checks GROQ_API_KEY presence
+- [x] Doctor detects present dependencies with checkmark
+- [x] Doctor detects missing dependencies with X
+- [x] Doctor shows version for each tool
+- [x] Doctor shows install command for missing tools
+- [x] Doctor checks GROQ_API_KEY presence
 
 **Acceptance Criteria**:
-- [ ] `whispertui doctor` lists all dependencies
-- [ ] Each dependency shows: name, status, version or install hint
-- [ ] Exit code 0 if all OK, non-zero if missing dependencies
-- [ ] GROQ_API_KEY shown as set/not set (not the actual value)
+- [x] `whispertui doctor` lists all dependencies
+- [x] Each dependency shows: name, status, version or install hint
+- [x] Exit code 0 if all OK, non-zero if missing dependencies
+- [x] GROQ_API_KEY shown as set/not set (not the actual value)
 
 ---
 
