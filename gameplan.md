@@ -121,19 +121,19 @@ Mark tasks complete by changing [ ] to [x].
 - `src/index.ts` (add `daemon` command)
 
 **Tests**:
-- [ ] Socket accepts connections and parses JSON commands
-- [ ] Status command returns current state
-- [ ] Shutdown command cleanly exits
-- [ ] Stale socket files are cleaned up on startup
-- [ ] SIGTERM triggers graceful shutdown
-- [ ] Malformed JSON returns error response
+- [x] Socket accepts connections and parses JSON commands
+- [x] Status command returns current state
+- [x] Shutdown command cleanly exits
+- [x] Stale socket files are cleaned up on startup
+- [x] SIGTERM triggers graceful shutdown
+- [x] Malformed JSON returns error response
 
 **Acceptance Criteria**:
-- [ ] `whispertui daemon` starts and listens on socket
-- [ ] Multiple commands can be sent over same socket connection
-- [ ] Socket has 0600 permissions
-- [ ] PID file created and removed on clean shutdown
-- [ ] `kill -TERM <pid>` shuts down gracefully
+- [x] `whispertui daemon` starts and listens on socket
+- [x] Multiple commands can be sent over same socket connection
+- [x] Socket has 0600 permissions
+- [x] PID file created and removed on clean shutdown
+- [x] `kill -TERM <pid>` shuts down gracefully
 
 ---
 

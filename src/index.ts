@@ -6,6 +6,7 @@
 
 import { ensureAllDirs, paths } from "./config/paths.ts";
 import { loadConfig, formatConfigError } from "./config/loader.ts";
+import { createDaemonServer, type DaemonServer } from "./daemon/server.ts";
 
 const VERSION = "0.1.0";
 
@@ -33,6 +34,67 @@ Options:
 
 function printVersion(): void {
   console.log(`whispertui v${VERSION}`);
+}
+
+/**
+ * Run the daemon in foreground mode with signal handling
+ */
+async function runDaemon(): Promise<void> {
+  const server = createDaemonServer();
+  let isShuttingDown = false;
+
+  const shutdown = async (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    console.log(`\nReceived ${signal}, shutting down...`);
+    await server.stop();
+    console.log("Daemon stopped");
+    process.exit(0);
+  };
+
+  // Handle SIGTERM (kill) and SIGINT (Ctrl+C)
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+
+  // Subscribe to server events for logging
+  server.subscribe((event, data) => {
+    switch (event) {
+      case "started":
+        console.log(`Daemon started, listening on ${paths.socket()}`);
+        console.log(`PID: ${process.pid}`);
+        break;
+      case "stopped":
+        console.log("Server stopped");
+        break;
+      case "client_connected":
+        // Silent - don't log connection events
+        break;
+      case "client_disconnected":
+        // Silent
+        break;
+      case "command_received":
+        // Could add verbose logging here if needed
+        break;
+    }
+  });
+
+  try {
+    await server.start();
+    // Keep process alive - server will handle events
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("already running")) {
+        console.error(`Error: ${error.message}`);
+        console.error("Use 'whispertui shutdown' to stop the running daemon first.");
+      } else {
+        console.error(`Failed to start daemon: ${error.message}`);
+      }
+    } else {
+      console.error("Failed to start daemon:", error);
+    }
+    process.exit(1);
+  }
 }
 
 async function main(): Promise<void> {
@@ -71,7 +133,7 @@ async function main(): Promise<void> {
       console.log("shutdown: not implemented yet");
       break;
     case "daemon":
-      console.log("daemon: not implemented yet");
+      await runDaemon();
       break;
     case "config":
       try {
