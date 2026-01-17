@@ -51,6 +51,12 @@ import {
   extractNotificationConfig,
   type NotificationConfig,
 } from "../notify/index.ts";
+import {
+  HistoryManager,
+  createHistoryManager,
+  extractHistoryConfig,
+  type HistoryConfig,
+} from "../history/index.ts";
 import type { Config } from "../config/schema.ts";
 
 /** Commands that can be sent to the daemon */
@@ -90,6 +96,7 @@ export interface DaemonServerOptions {
   transcriptionConfig?: TranscriptionConfig;
   outputConfig?: OutputConfig;
   notificationConfig?: NotificationConfig;
+  historyConfig?: HistoryConfig;
 }
 
 /** Server lifecycle events */
@@ -205,6 +212,12 @@ const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
   enabled: true,
 };
 
+/** Default history config when none provided */
+const DEFAULT_HISTORY_CONFIG: HistoryConfig = {
+  enabled: true,
+  maxEntries: 1000,
+};
+
 /**
  * DaemonServer - Unix socket server with JSON protocol
  */
@@ -218,6 +231,7 @@ export class DaemonServer {
   private transcriber: GroqClient;
   private outputConfig: OutputConfig;
   private notifier: Notifier;
+  private historyManager: HistoryManager;
   private currentAudioPath: string | null = null;
 
   constructor(options?: DaemonServerOptions) {
@@ -237,6 +251,10 @@ export class DaemonServer {
     const notificationConfig = options?.notificationConfig ??
       (options?.config ? extractNotificationConfig(options.config) : DEFAULT_NOTIFICATION_CONFIG);
     this.notifier = createNotifier(notificationConfig);
+
+    const historyConfig = options?.historyConfig ??
+      (options?.config ? extractHistoryConfig(options.config) : DEFAULT_HISTORY_CONFIG);
+    this.historyManager = createHistoryManager(historyConfig);
   }
 
   /** Get the state machine instance */
@@ -391,6 +409,9 @@ export class DaemonServer {
 
           // Output handling based on config
           await this.handleOutput(text);
+
+          // Save to history
+          this.historyManager.save(text);
 
           this.stateMachine.send({ type: "transcription_complete", text });
 
@@ -633,6 +654,11 @@ export class DaemonServer {
   /** Get notifier instance (for testing) */
   getNotifier(): Notifier {
     return this.notifier;
+  }
+
+  /** Get history manager instance (for testing) */
+  getHistoryManager(): HistoryManager {
+    return this.historyManager;
   }
 }
 

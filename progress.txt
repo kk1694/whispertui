@@ -160,20 +160,40 @@ Each Claude instance should read this at the start and append notes at the end.
 - Config schema already had `notifications.enabled` defined from earlier work
 - 31 new tests covering notification module and Notifier class
 
+### 2026-01-17: Step 8 - History Storage
+
+- Created `src/history/index.ts` with history management functions and `HistoryManager` class
+- History entries stored as timestamped text files in `~/.local/share/whispertui/history/`
+- Filename format: `YYYY-MM-DD_HH-MM-SS-mmm-nnn.txt` (timestamp + counter for uniqueness)
+- Counter ensures unique filenames even when multiple saves occur in same millisecond
+- `HistoryEntry` interface: id, timestamp (ISO 8601), text, path
+- Functions: `saveHistory()`, `listHistory()`, `countHistory()`, `pruneHistory()`, `deleteHistory()`, `getHistory()`, `clearHistory()`
+- `listHistory()` returns entries in reverse chronological order (newest first)
+- Supports limit and offset options for pagination
+- `pruneHistory()` deletes oldest entries when exceeding max_entries
+- `HistoryManager` class wraps functions with config awareness:
+  - Respects `enabled` config option - returns null if disabled
+  - Auto-prunes on save when exceeding maxEntries
+- Integrated into `DaemonServer.handleStop()` - saves transcription after successful output
+- CLI `history` command displays recent transcriptions with timestamps
+- Supports `--limit N` and `-n N` flags to limit output
+- `extractHistoryConfig()` extracts history settings from app Config
+- 38 new tests covering all history functions and HistoryManager class
+
 ---
 
 ## Current State
 
-- Project status: Step 7 complete
-- Last completed task: Step 7 - Notifications
+- Project status: Step 8 complete
+- Last completed task: Step 8 - History Storage
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 8 - History Storage
-- Need to implement history writer (timestamped files)
-- Implement history reader (list, limit)
-- Add history CLI command
-- Implement history pruning (max_entries)
+- Next task: Step 9 - Context Detection
+- Need to implement hyprctl wrapper (get active window)
+- Parse window class/title
+- Detect code-aware apps from config list
+- Expose context info in daemon state

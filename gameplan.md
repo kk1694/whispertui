@@ -357,16 +357,16 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/handler.ts` (save after transcription)
 
 **Tests**:
-- [ ] Transcriptions saved to history directory
-- [ ] History list returns entries in reverse chronological order
-- [ ] Limit parameter works
-- [ ] Pruning removes oldest entries beyond max
+- [x] Transcriptions saved to history directory
+- [x] History list returns entries in reverse chronological order
+- [x] Limit parameter works
+- [x] Pruning removes oldest entries beyond max
 
 **Acceptance Criteria**:
-- [ ] Each transcription creates file in `~/.local/share/whispertui/history/`
-- [ ] `whispertui history` lists recent transcriptions
-- [ ] `whispertui history --limit 5` limits output
-- [ ] Old entries pruned when exceeding max_entries
+- [x] Each transcription creates file in `~/.local/share/whispertui/history/`
+- [x] `whispertui history` lists recent transcriptions
+- [x] `whispertui history --limit 5` limits output
+- [x] Old entries pruned when exceeding max_entries
 
 ---
 
