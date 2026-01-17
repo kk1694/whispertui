@@ -88,18 +88,18 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/state.ts`
 
 **Tests** (unit tests - no external deps):
-- [ ] `idle` + `start` → `recording`
-- [ ] `recording` + `stop` → `transcribing`
-- [ ] `transcribing` + `complete` → `idle`
-- [ ] `idle` + `stop` → error (invalid transition)
-- [ ] `recording` + `start` → error (already recording)
-- [ ] State change events fire correctly
+- [x] `idle` + `start` → `recording`
+- [x] `recording` + `stop` → `transcribing`
+- [x] `transcribing` + `complete` → `idle`
+- [x] `idle` + `stop` → error (invalid transition)
+- [x] `recording` + `start` → error (already recording)
+- [x] State change events fire correctly
 
 **Acceptance Criteria**:
-- [ ] State machine is pure (no I/O, easily testable)
-- [ ] All valid transitions work
-- [ ] Invalid transitions throw descriptive errors
-- [ ] 100% test coverage on state module
+- [x] State machine is pure (no I/O, easily testable)
+- [x] All valid transitions work
+- [x] Invalid transitions throw descriptive errors
+- [x] 100% test coverage on state module
 
 ---
 

@@ -24,18 +24,31 @@ Each Claude instance should read this at the start and append notes at the end.
 
 ---
 
+### 2026-01-17: Step 2a - State Machine
+
+- Pure state machine with no I/O makes testing straightforward
+- Used TypeScript discriminated unions for DaemonEvent type - provides good type safety
+- InvalidTransitionError custom error class helps with debugging and programmatic error handling
+- The `canTransition` method allows checking validity without throwing
+- Event emitter pattern using Set<Listener> and returning unsubscribe function is clean
+- Context object is immutable (getter returns copy) to prevent accidental mutations
+- 34 unit tests covering all valid transitions, invalid transitions, error handling, context tracking, and event emitter
+
+---
+
 ## Current State
 
-- Project status: Step 1b complete
-- Last completed task: Step 1b - Config Schema & Loader
+- Project status: Step 2a complete
+- Last completed task: Step 2a - State Machine
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 2a - State Machine
-- The state machine should be pure (no I/O) for easy testing
-- States: idle, recording, transcribing
-- Events: start, stop, transcription_complete, error
-- Need to add event emitter for state change notifications
+- Next task: Step 2b - Unix Socket Server & IPC
+- Need to create Unix socket server with JSON protocol
+- Wire command handlers to state machine
+- Implement commands: start, stop, status, shutdown
+- Add PID file management and socket cleanup
+- Add SIGTERM/SIGINT handlers for graceful shutdown
