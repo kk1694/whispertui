@@ -35,6 +35,11 @@ import {
   TranscriptionApiError,
   InvalidAudioError,
 } from "../transcription/groq.ts";
+import {
+  copyToClipboard,
+  WlCopyNotFoundError,
+  ClipboardError,
+} from "../output/clipboard.ts";
 import type { Config } from "../config/schema.ts";
 
 /** Commands that can be sent to the daemon */
@@ -340,6 +345,23 @@ export class DaemonServer {
 
         try {
           const text = await this.transcriber.transcribe(finalPath);
+
+          // Copy transcribed text to clipboard
+          try {
+            await copyToClipboard(text);
+          } catch (clipboardError) {
+            // Log clipboard error but don't fail the transcription
+            // The text is still available in lastTranscription
+            let clipboardMessage = "Failed to copy to clipboard";
+            if (clipboardError instanceof WlCopyNotFoundError) {
+              clipboardMessage = clipboardError.message;
+            } else if (clipboardError instanceof ClipboardError) {
+              clipboardMessage = clipboardError.message;
+            }
+            // TODO: Send notification about clipboard failure (Step 7)
+            console.error(clipboardMessage);
+          }
+
           this.stateMachine.send({ type: "transcription_complete", text });
         } catch (error) {
           // Transcription failed

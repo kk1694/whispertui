@@ -172,6 +172,13 @@ export function formatResponse(response: DaemonResponse): string {
     if (response.state) {
       parts.push(`State: ${response.state}`);
     }
+    if (response.context?.lastTranscription) {
+      parts.push("");
+      parts.push("Transcription:");
+      parts.push(response.context.lastTranscription);
+      parts.push("");
+      parts.push("(Copied to clipboard)");
+    }
     if (response.context?.currentWindow) {
       const win = response.context.currentWindow;
       parts.push(`Window: ${win.windowClass} - ${win.windowTitle}`);

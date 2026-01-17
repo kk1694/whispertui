@@ -272,16 +272,16 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/handler.ts` (integrate clipboard output)
 
 **Tests**:
-- [ ] wl-copy puts text in clipboard
-- [ ] Missing wl-copy gives clear error
-- [ ] Newlines preserved in clipboard
-- [ ] Unicode characters handled correctly
-- [ ] Empty text handled gracefully
+- [x] wl-copy puts text in clipboard
+- [x] Missing wl-copy gives clear error
+- [x] Newlines preserved in clipboard
+- [x] Unicode characters handled correctly
+- [x] Empty text handled gracefully
 
 **Acceptance Criteria**:
-- [ ] After transcription, text appears in clipboard (`wl-paste`)
-- [ ] `whispertui stop` outputs text and copies to clipboard
-- [ ] Clear error if wl-copy not installed
+- [x] After transcription, text appears in clipboard (`wl-paste`)
+- [x] `whispertui stop` outputs text and copies to clipboard
+- [x] Clear error if wl-copy not installed
 
 ---
 

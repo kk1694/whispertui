@@ -108,20 +108,33 @@ Each Claude instance should read this at the start and append notes at the end.
 - Mocking fetch in Bun tests: Use `mock()` with cast `as unknown as typeof fetch` to satisfy TypeScript
 - 30+ new tests covering client creation, API key handling, transcription, error handling, and retries
 
+### 2026-01-17: Step 6a - Clipboard Output
+
+- Created `src/output/clipboard.ts` with `copyToClipboard()` function using wl-copy
+- Custom error classes: `WlCopyNotFoundError` (with install instructions for Arch/Ubuntu/Fedora), `ClipboardError`
+- wl-copy reads from stdin - write text to process.stdin then close
+- Empty text is handled gracefully (copies empty string to clear clipboard)
+- Special characters (quotes, brackets, unicode) handled correctly by piping through stdin
+- `checkWlCopyAvailable()` helper to verify wl-copy is installed
+- Integrated clipboard copy into `DaemonServer.handleStop()` - copies text after successful transcription
+- Clipboard errors are logged but don't fail the transcription - text still available in lastTranscription
+- Updated `formatResponse()` in client to show transcription text and "(Copied to clipboard)" message
+- 13 new tests covering clipboard operations, error handling, and integration with wl-paste verification
+
 ---
 
 ## Current State
 
-- Project status: Step 5 complete
-- Last completed task: Step 5 - Groq API Integration
+- Project status: Step 6a complete
+- Last completed task: Step 6a - Clipboard Output
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 6a - Clipboard Output
-- Need to implement wl-copy wrapper for copying text to clipboard
-- Integrate clipboard copy into transcription flow
-- Handle missing wl-copy binary gracefully
-- Handle special characters (newlines, quotes, unicode)
+- Next task: Step 6b - Auto-Type Output
+- Need to implement wtype wrapper for typing text into focused window
+- Add output mode selection from config (wtype vs clipboard-only)
+- Implement fallback (wtype fails → clipboard only + notification)
+- Handle typing delays and special characters
