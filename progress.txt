@@ -62,20 +62,32 @@ Each Claude instance should read this at the start and append notes at the end.
 - Testing timeout: Create mock server that accepts connections but never responds
 - 18 new tests covering client connection, command sending, error handling, and response formatting
 
+### 2026-01-17: Step 3b - Daemon Auto-Start
+
+- Spawn daemon using `spawn()` with `detached: true` and `stdio: ["ignore", "ignore", "ignore"]` for clean background process
+- Added `DaemonStartError` custom error class for spawn/startup failures
+- `isDaemonStarting()` check prevents race condition when multiple commands try to start daemon simultaneously
+- `waitForDaemon()` polls with configurable timeout until daemon responds to ping
+- `ensureDaemonRunning()` is the main entry point - returns boolean indicating if daemon was auto-started
+- CLI commands now auto-start daemon transparently using `ensureDaemonRunning()` before sending commands
+- TypeScript: Need to use `stdio: ["ignore", "ignore", "ignore"]` (array form) instead of `stdio: "ignore"` (string form) to avoid type errors with spawn
+- TypeScript: Need to check `process.argv[1]` for undefined before using
+- 8 new tests covering waitForDaemon, ensureDaemonRunning, spawnDaemon, and DaemonStartError
+
 ---
 
 ## Current State
 
-- Project status: Step 3a complete
-- Last completed task: Step 3a - Socket Client
+- Project status: Step 3b complete
+- Last completed task: Step 3b - Daemon Auto-Start
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 3b - Daemon Auto-Start
-- Need to implement daemon spawn as background process
-- Add daemon health check (socket exists + responds to ping)
-- Implement wait-for-ready with timeout
-- Integrate auto-start into CLI command flow
+- Next task: Step 4 - Audio Recording
+- Need to create parecord wrapper (spawn, capture to file)
+- Implement recording start/stop control
+- Handle audio device selection from config
+- Add temp file management in cache directory

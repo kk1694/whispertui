@@ -2,16 +2,23 @@
  * Socket Client for WhisperTUI CLI
  *
  * Connects to the daemon over Unix socket and sends JSON commands.
- * Handles connection timeouts and graceful error handling.
+ * Handles connection timeouts, graceful error handling, and daemon auto-start.
  */
 
 import { connect, type Socket } from "node:net";
-import { existsSync } from "node:fs";
-import { getSocketPath } from "../config/paths.ts";
+import { existsSync, readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { getSocketPath, getPidPath } from "../config/paths.ts";
 import type { DaemonCommand, DaemonResponse } from "../daemon/server.ts";
 
 /** Default connection timeout in milliseconds */
 const DEFAULT_TIMEOUT = 5000;
+
+/** Default wait-for-ready timeout in milliseconds */
+const DEFAULT_READY_TIMEOUT = 10000;
+
+/** Polling interval when waiting for daemon to start */
+const READY_POLL_INTERVAL = 100;
 
 /** Error thrown when daemon is not running */
 export class DaemonNotRunningError extends Error {
@@ -26,6 +33,14 @@ export class ConnectionTimeoutError extends Error {
   constructor(timeout: number) {
     super(`Connection timed out after ${timeout}ms`);
     this.name = "ConnectionTimeoutError";
+  }
+}
+
+/** Error thrown when daemon fails to start */
+export class DaemonStartError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DaemonStartError";
   }
 }
 
@@ -165,4 +180,129 @@ export function formatResponse(response: DaemonResponse): string {
   } else {
     return `Error: ${response.error ?? "Unknown error"}`;
   }
+}
+
+/** Options for auto-start functionality */
+export interface AutoStartOptions extends ClientOptions {
+  /** Timeout for waiting for daemon to become ready (default: 10000) */
+  readyTimeout?: number;
+}
+
+/**
+ * Check if a PID file refers to a running process
+ */
+function isPidRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if daemon is already starting (PID file exists with running process, but socket not yet ready)
+ */
+function isDaemonStarting(): boolean {
+  const pidPath = getPidPath();
+  if (!existsSync(pidPath)) {
+    return false;
+  }
+  try {
+    const pidContent = readFileSync(pidPath, "utf-8").trim();
+    const pid = parseInt(pidContent, 10);
+    if (isNaN(pid)) {
+      return false;
+    }
+    // PID exists and process is running, but socket may not be ready yet
+    return isPidRunning(pid);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Spawn the daemon as a background process
+ * Returns the child process PID
+ */
+export function spawnDaemon(): number {
+  // Get the path to the current script's entry point
+  const scriptPath = process.argv[1];
+  if (!scriptPath) {
+    throw new DaemonStartError("Cannot determine script path for daemon spawn");
+  }
+
+  // Spawn daemon process detached from parent
+  const child = spawn("bun", ["run", scriptPath, "daemon"], {
+    detached: true,
+    stdio: ["ignore", "ignore", "ignore"],
+    env: process.env,
+  });
+
+  // Let the child run independently
+  child.unref();
+
+  if (!child.pid) {
+    throw new DaemonStartError("Failed to spawn daemon process");
+  }
+
+  return child.pid;
+}
+
+/**
+ * Wait for daemon to become ready (socket exists and responds to ping)
+ */
+export async function waitForDaemon(options: AutoStartOptions = {}): Promise<void> {
+  const readyTimeout = options.readyTimeout ?? DEFAULT_READY_TIMEOUT;
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < readyTimeout) {
+    if (await isDaemonRunning(options)) {
+      return;
+    }
+    // Wait before next attempt
+    await new Promise((resolve) => setTimeout(resolve, READY_POLL_INTERVAL));
+  }
+
+  throw new DaemonStartError(
+    `Daemon did not become ready within ${readyTimeout}ms`
+  );
+}
+
+/**
+ * Ensure daemon is running, starting it if necessary
+ * Returns true if daemon was auto-started, false if already running
+ */
+export async function ensureDaemonRunning(options: AutoStartOptions = {}): Promise<boolean> {
+  // Check if daemon is already running
+  if (await isDaemonRunning(options)) {
+    return false;
+  }
+
+  // Check if daemon is in the process of starting (avoid race condition)
+  if (isDaemonStarting()) {
+    // Wait for the existing daemon to become ready
+    await waitForDaemon(options);
+    return false;
+  }
+
+  // Spawn the daemon
+  spawnDaemon();
+
+  // Wait for it to become ready
+  await waitForDaemon(options);
+
+  return true;
+}
+
+/**
+ * Send a command to the daemon, auto-starting if necessary
+ */
+export async function sendCommandWithAutoStart(
+  command: DaemonCommand,
+  options: AutoStartOptions = {}
+): Promise<{ response: DaemonResponse; wasAutoStarted: boolean }> {
+  const wasAutoStarted = await ensureDaemonRunning(options);
+  const response = await sendCommand(command, options);
+  return { response, wasAutoStarted };
 }

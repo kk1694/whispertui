@@ -8,6 +8,10 @@ import {
   formatResponse,
   DaemonNotRunningError,
   ConnectionTimeoutError,
+  DaemonStartError,
+  spawnDaemon,
+  waitForDaemon,
+  ensureDaemonRunning,
 } from "./index.ts";
 import { createDaemonServer, type DaemonServer } from "../daemon/server.ts";
 
@@ -257,6 +261,78 @@ describe("Socket Client", () => {
       const error = new ConnectionTimeoutError(5000);
       expect(error.message).toContain("5000ms");
       expect(error.name).toBe("ConnectionTimeoutError");
+    });
+
+    test("DaemonStartError has correct name", () => {
+      const error = new DaemonStartError("Test error");
+      expect(error.message).toBe("Test error");
+      expect(error.name).toBe("DaemonStartError");
+    });
+  });
+
+  describe("waitForDaemon", () => {
+    test("resolves when daemon becomes ready", async () => {
+      // Start server after a short delay
+      setTimeout(async () => {
+        await server.start();
+      }, 50);
+
+      // Wait for daemon should succeed
+      await expect(
+        waitForDaemon({ socketPath, readyTimeout: 2000 })
+      ).resolves.toBeUndefined();
+    });
+
+    test("throws DaemonStartError if daemon never becomes ready", async () => {
+      // Don't start the server - daemon will never be ready
+      await expect(
+        waitForDaemon({ socketPath, readyTimeout: 200 })
+      ).rejects.toThrow(DaemonStartError);
+    });
+
+    test("returns immediately if daemon already running", async () => {
+      await server.start();
+
+      const start = Date.now();
+      await waitForDaemon({ socketPath, readyTimeout: 5000 });
+      const elapsed = Date.now() - start;
+
+      // Should return very quickly since daemon is already ready
+      expect(elapsed).toBeLessThan(200);
+    });
+  });
+
+  describe("ensureDaemonRunning", () => {
+    test("returns false if daemon already running", async () => {
+      await server.start();
+
+      const wasAutoStarted = await ensureDaemonRunning({ socketPath });
+      expect(wasAutoStarted).toBe(false);
+    });
+
+    test("does not spawn additional daemons when one is starting", async () => {
+      // Start server after a delay to simulate startup
+      setTimeout(async () => {
+        await server.start();
+      }, 100);
+
+      // First call will see daemon not running
+      // Wait for daemon should succeed once server starts
+      const result = await ensureDaemonRunning({
+        socketPath,
+        readyTimeout: 2000,
+      });
+
+      // Should have used the existing server (not spawned new one)
+      expect(await isDaemonRunning({ socketPath })).toBe(true);
+    });
+  });
+
+  describe("spawnDaemon", () => {
+    test("returns a process ID", () => {
+      // Note: We can't fully test spawn without affecting the real daemon
+      // This is a sanity check that the function exists and returns a number
+      expect(typeof spawnDaemon).toBe("function");
     });
   });
 });

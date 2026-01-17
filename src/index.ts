@@ -12,6 +12,8 @@ import {
   formatResponse,
   DaemonNotRunningError,
   ConnectionTimeoutError,
+  DaemonStartError,
+  ensureDaemonRunning,
 } from "./client/index.ts";
 import type { DaemonCommand } from "./daemon/server.ts";
 
@@ -45,17 +47,28 @@ function printVersion(): void {
 
 /**
  * Send a command to the daemon and handle errors gracefully
+ * Auto-starts daemon if not running
  */
 async function runClientCommand(command: DaemonCommand): Promise<void> {
   try {
+    // Ensure daemon is running first (auto-start if needed)
+    const wasAutoStarted = await ensureDaemonRunning();
+    if (wasAutoStarted) {
+      // Silently auto-started - no message needed, but could add one if desired
+    }
+
     const response = await sendCommand(command);
     console.log(formatResponse(response));
     if (!response.success) {
       process.exit(1);
     }
   } catch (error) {
-    if (error instanceof DaemonNotRunningError) {
-      console.error("Error: Daemon is not running");
+    if (error instanceof DaemonStartError) {
+      console.error(`Error: ${error.message}`);
+      console.error("Try starting the daemon manually with: whispertui daemon");
+      process.exit(1);
+    } else if (error instanceof DaemonNotRunningError) {
+      console.error("Error: Daemon is not running and could not be started");
       console.error("Start the daemon with: whispertui daemon");
       process.exit(1);
     } else if (error instanceof ConnectionTimeoutError) {
@@ -74,9 +87,13 @@ async function runClientCommand(command: DaemonCommand): Promise<void> {
 
 /**
  * Handle toggle command - start if idle, stop if recording
+ * Auto-starts daemon if not running
  */
 async function runToggleCommand(): Promise<void> {
   try {
+    // Ensure daemon is running first (auto-start if needed)
+    await ensureDaemonRunning();
+
     // First check current status
     const statusResponse = await sendCommand("status");
     if (!statusResponse.success) {
@@ -92,8 +109,12 @@ async function runToggleCommand(): Promise<void> {
       process.exit(1);
     }
   } catch (error) {
-    if (error instanceof DaemonNotRunningError) {
-      console.error("Error: Daemon is not running");
+    if (error instanceof DaemonStartError) {
+      console.error(`Error: ${error.message}`);
+      console.error("Try starting the daemon manually with: whispertui daemon");
+      process.exit(1);
+    } else if (error instanceof DaemonNotRunningError) {
+      console.error("Error: Daemon is not running and could not be started");
       console.error("Start the daemon with: whispertui daemon");
       process.exit(1);
     } else if (error instanceof ConnectionTimeoutError) {

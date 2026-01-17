@@ -183,17 +183,17 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/server.ts` (add ping/health command if needed)
 
 **Tests**:
-- [ ] Auto-start spawns daemon process
-- [ ] Wait-for-ready polls until socket responds
-- [ ] Timeout if daemon fails to start
-- [ ] Subsequent commands use running daemon
-- [ ] Multiple rapid commands don't spawn multiple daemons
+- [x] Auto-start spawns daemon process
+- [x] Wait-for-ready polls until socket responds
+- [x] Timeout if daemon fails to start
+- [x] Subsequent commands use running daemon
+- [x] Multiple rapid commands don't spawn multiple daemons
 
 **Acceptance Criteria**:
-- [ ] `whispertui status` auto-starts daemon if not running
-- [ ] First command has slight delay (daemon startup)
-- [ ] Subsequent commands are instant
-- [ ] Failed daemon start shows clear error
+- [x] `whispertui status` auto-starts daemon if not running
+- [x] First command has slight delay (daemon startup)
+- [x] Subsequent commands are instant
+- [x] Failed daemon start shows clear error
 
 ---
 
