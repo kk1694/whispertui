@@ -507,17 +507,17 @@ Mark tasks complete by changing [ ] to [x].
 - `src/index.ts` (add config --edit)
 
 **Tests**:
-- [ ] Startup script launches daemon correctly
-- [ ] Config edit opens $EDITOR
-- [ ] Config edit creates default config if missing
-- [ ] Missing optional deps (notify-send, hyprctl) don't crash
+- [x] Startup script launches daemon correctly
+- [x] Config edit opens $EDITOR
+- [x] Config edit creates default config if missing
+- [x] Missing optional deps (notify-send, hyprctl) don't crash
 
 **Acceptance Criteria**:
-- [ ] `exec-once = whispertui daemon &` works in Hyprland
-- [ ] README documents push-to-talk keybind setup
-- [ ] `whispertui config --edit` opens config in editor
-- [ ] Missing hyprctl doesn't crash (context detection disabled)
-- [ ] Missing notify-send doesn't crash (notifications disabled)
+- [x] `exec-once = whispertui daemon &` works in Hyprland
+- [x] README documents push-to-talk keybind setup
+- [x] `whispertui config --edit` opens config in editor
+- [x] Missing hyprctl doesn't crash (context detection disabled)
+- [x] Missing notify-send doesn't crash (notifications disabled)
 
 ---
 

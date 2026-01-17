@@ -4,8 +4,11 @@
  * Entry point with CLI command routing
  */
 
-import { ensureAllDirs, paths } from "./config/paths.ts";
+import { ensureAllDirs, paths, getConfigPath, ensureDir, getConfigDir } from "./config/paths.ts";
 import { loadConfig, formatConfigError } from "./config/loader.ts";
+import { spawn } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { createDaemonServer, type DaemonServer } from "./daemon/server.ts";
 import {
   sendCommand,
@@ -31,16 +34,17 @@ function printHelp(): void {
 Usage: whispertui <command> [options]
 
 Commands:
-  start       Start recording
-  stop        Stop recording and transcribe
-  toggle      Toggle recording state
-  status      Show daemon status
-  shutdown    Stop the daemon
-  daemon      Start daemon in foreground
-  config      Print current config
-  history     List recent transcriptions
-  tui         Launch interactive TUI
-  doctor      Check system dependencies
+  start         Start recording
+  stop          Stop recording and transcribe
+  toggle        Toggle recording state
+  status        Show daemon status
+  shutdown      Stop the daemon
+  daemon        Start daemon in foreground
+  config        Print current config
+  config --edit Open config file in $EDITOR
+  history       List recent transcriptions
+  tui           Launch interactive TUI
+  doctor        Check system dependencies
 
 Options:
   --help, -h     Show this help message
@@ -49,6 +53,101 @@ Options:
 
 function printVersion(): void {
   console.log(`whispertui v${VERSION}`);
+}
+
+/** Default config content (same as config.example.toml) */
+const DEFAULT_CONFIG_CONTENT = `# WhisperTUI Configuration
+# All values shown are defaults - you can omit any section or key to use defaults
+
+[transcription]
+# Transcription backend (currently only "groq" is supported)
+backend = "groq"
+# Environment variable containing the API key
+api_key_env = "GROQ_API_KEY"
+
+[audio]
+# PulseAudio device name ("default" uses the system default)
+device = "default"
+# Sample rate in Hz (Whisper expects 16kHz)
+sample_rate = 16000
+# Audio format (only "wav" is supported)
+format = "wav"
+
+[output]
+# Automatically paste transcribed text
+auto_paste = true
+# Paste method: "wtype" (types into focused window) or "clipboard-only"
+paste_method = "wtype"
+
+[context]
+# Enable context detection (detects code-aware apps)
+enabled = true
+# Window classes considered "code-aware" (affects transcription mode in v2)
+code_aware_apps = ["Alacritty", "kitty", "foot", "nvim", "code", "Code"]
+
+[history]
+# Enable transcription history
+enabled = true
+# Maximum number of history entries to keep
+max_entries = 1000
+
+[daemon]
+# Idle timeout in seconds (0 = never auto-shutdown)
+idle_timeout = 0
+
+[notifications]
+# Enable desktop notifications
+enabled = true
+`;
+
+/**
+ * Open config file in $EDITOR, creating default config if it doesn't exist
+ */
+async function openConfigInEditor(): Promise<void> {
+  const configPath = getConfigPath();
+  const configDir = getConfigDir();
+
+  // Ensure config directory exists
+  ensureDir(configDir);
+
+  // Create default config if it doesn't exist
+  if (!existsSync(configPath)) {
+    console.log(`Creating default config at ${configPath}`);
+    writeFileSync(configPath, DEFAULT_CONFIG_CONTENT, "utf-8");
+  }
+
+  // Get editor from $EDITOR or $VISUAL, fallback to common editors
+  const editor = process.env.EDITOR || process.env.VISUAL || "nano";
+
+  console.log(`Opening ${configPath} in ${editor}...`);
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(editor, [configPath], {
+      stdio: "inherit",
+      shell: true,
+    });
+
+    proc.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        console.error(`Error: Editor '${editor}' not found`);
+        console.error("Set $EDITOR environment variable to your preferred editor");
+        process.exit(1);
+      } else {
+        console.error(`Error opening editor: ${error.message}`);
+        process.exit(1);
+      }
+    });
+
+    proc.on("exit", (code) => {
+      if (code === 0) {
+        console.log("Config saved.");
+        resolve();
+      } else {
+        console.error(`Editor exited with code ${code}`);
+        process.exit(code ?? 1);
+      }
+    });
+  });
 }
 
 /**
@@ -236,7 +335,13 @@ async function main(): Promise<void> {
     case "daemon":
       await runDaemon();
       break;
-    case "config":
+    case "config": {
+      // Check for --edit flag
+      if (args.includes("--edit") || args.includes("-e")) {
+        await openConfigInEditor();
+        break;
+      }
+
       try {
         const config = await loadConfig();
         console.log("WhisperTUI Configuration:");
@@ -281,6 +386,7 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       break;
+    }
     case "history": {
       // Parse --limit flag
       let limit: number | undefined;

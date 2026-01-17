@@ -278,21 +278,38 @@ Each Claude instance should read this at the start and append notes at the end.
 - 25 new tests covering all check functions and formatting
 - Total: 363 tests passing
 
+### 2026-01-17: Step 12b - Hyprland Integration & Polish
+
+- Created `scripts/hyprland-startup.sh` with daemon startup and logging
+- Startup script checks if daemon is already running before starting
+- Logs to `$XDG_STATE_HOME/whispertui/startup.log` for debugging
+- Added `config --edit` command to open config in $EDITOR
+- Creates default config if it doesn't exist (uses same content as config.example.toml)
+- Falls back to nano if $EDITOR and $VISUAL are not set
+- Graceful degradation already implemented in prior steps:
+  - Notifier class silently returns false when notify-send missing
+  - ContextDetector silently returns null when hyprctl missing
+  - wtype failures fall back to clipboard-only
+- Wrote comprehensive README.md with:
+  - Installation instructions
+  - All CLI commands and TUI keybindings
+  - Hyprland integration (exec-once, keybindings, push-to-talk)
+  - Configuration reference
+  - Troubleshooting section
+- Fixed TypeScript type errors in doctor module (regex match array handling)
+- Total: 363 tests passing
+
 ---
 
 ## Current State
 
-- Project status: Step 12a complete
-- Last completed task: Step 12a - Doctor Command
+- Project status: Step 12b complete - ALL STEPS DONE
+- Last completed task: Step 12b - Hyprland Integration & Polish
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 12b - Hyprland Integration & Polish
-- Create Hyprland startup script
-- Document keybind configuration in README
-- Add `config --edit` command to open config in $EDITOR
-- Final error handling review
-- Add graceful degradation for missing optional dependencies
+- All MVP tasks completed!
+- v2 features deferred: text cleanup levels, code-aware mode, custom vocabulary, local Whisper fallback, voice commands, multi-language

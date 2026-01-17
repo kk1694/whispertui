@@ -123,7 +123,8 @@ export async function checkParecord(): Promise<DependencyCheck> {
 
   if (result.code === 0) {
     // parecord --version outputs "pacat X.Y.Z" on first line
-    const version = result.stdout.split("\n")[0].replace(/^pacat\s+/, "");
+    const firstLine = result.stdout.split("\n")[0] ?? "";
+    const version = firstLine.replace(/^pacat\s+/, "");
     return {
       name: "parecord",
       description: "PulseAudio recording tool",
@@ -282,9 +283,9 @@ export async function checkHyprctl(): Promise<DependencyCheck> {
       // Try to extract version number or tag
       const tagMatch = versionLine.match(/Tag:\s*([^\s,]+)/);
       const versionMatch = versionLine.match(/Hyprland\s+([0-9.]+)/);
-      if (tagMatch) {
+      if (tagMatch && tagMatch[1]) {
         version = tagMatch[1];
-      } else if (versionMatch) {
+      } else if (versionMatch && versionMatch[1]) {
         version = versionMatch[1];
       }
     }
