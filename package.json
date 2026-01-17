@@ -1,0 +1,22 @@
+{
+  "name": "whispertui",
+  "version": "0.1.0",
+  "description": "Terminal-based voice transcription tool for Linux/Wayland",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "whispertui": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

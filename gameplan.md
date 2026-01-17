@@ -30,14 +30,14 @@ Mark tasks complete by changing [ ] to [x].
 - `.env` already exists with `GROQ_API_KEY`
 
 **Tests**:
-- [ ] XDG paths resolve correctly with default env vars
-- [ ] XDG paths respect custom env vars (XDG_CONFIG_HOME, etc.)
-- [ ] Directories created on first access
+- [x] XDG paths resolve correctly with default env vars
+- [x] XDG paths respect custom env vars (XDG_CONFIG_HOME, etc.)
+- [x] Directories created on first access
 
 **Acceptance Criteria**:
-- [ ] `bun run src/index.ts` runs without error
-- [ ] XDG paths module exports correct paths
-- [ ] Running creates `~/.config/whispertui/`, `~/.local/state/whispertui/`, etc.
+- [x] `bun run src/index.ts` runs without error
+- [x] XDG paths module exports correct paths
+- [x] Running creates `~/.config/whispertui/`, `~/.local/state/whispertui/`, etc.
 
 ---
 
