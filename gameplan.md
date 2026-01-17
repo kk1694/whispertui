@@ -5,6 +5,568 @@ This file contains the stages, steps, and acceptance criteria for the project.
 Mark tasks complete by changing [ ] to [x].
 -->
 
-## Stages
+**Tech Stack**: Bun, TypeScript, Ink (per tech-spec.md)
+**MVP Scope**: Core transcription loop. Text cleanup levels and code-aware mode deferred to v2.
 
-(To be populated)
+---
+
+## Stage 1: Project Foundation
+
+### Step 1a: Project Init & XDG Paths
+
+**Goal**: Set up the Bun/TypeScript project structure with XDG directory helpers.
+
+**Tasks**:
+1. Initialize Bun project with TypeScript
+2. Create directory structure per tech spec
+3. Create XDG directory helpers (config, state, data, cache paths)
+4. Add basic CLI entry point with command routing stub
+
+**Files to Create**:
+- `package.json`, `tsconfig.json`
+- `src/index.ts` (entry point with arg parsing stub)
+- `src/config/paths.ts` (XDG path helpers)
+
+**Tests**:
+- [ ] XDG paths resolve correctly with default env vars
+- [ ] XDG paths respect custom env vars (XDG_CONFIG_HOME, etc.)
+- [ ] Directories created on first access
+
+**Acceptance Criteria**:
+- [ ] `bun run src/index.ts` runs without error
+- [ ] XDG paths module exports correct paths
+- [ ] Running creates `~/.config/whispertui/`, `~/.local/state/whispertui/`, etc.
+
+---
+
+### Step 1b: Config Schema & Loader
+
+**Goal**: TOML config loading with Zod validation.
+
+**Tasks**:
+1. Define config schema with Zod
+2. Create default config values
+3. Implement TOML loader (parse file, merge with defaults)
+4. Add `config` CLI command to print current config
+
+**Files to Create**:
+- `src/config/schema.ts` (Zod schema)
+- `src/config/defaults.ts` (default values)
+- `src/config/index.ts` (loader)
+- `config.example.toml`
+
+**Tests**:
+- [ ] Config loads from TOML file correctly
+- [ ] Missing config file uses defaults
+- [ ] Partial config merges with defaults
+- [ ] Invalid config values throw descriptive errors
+- [ ] Unknown keys are ignored (forward compatibility)
+
+**Acceptance Criteria**:
+- [ ] `bun run src/index.ts config` prints merged config (defaults + file)
+- [ ] Config validation rejects invalid values with clear messages
+- [ ] `config.example.toml` documents all options
+
+---
+
+## Stage 2: Daemon Core
+
+### Step 2a: State Machine
+
+**Goal**: Implement the core daemon state machine as a pure module.
+
+**Tasks**:
+1. Define state types (idle, recording, transcribing)
+2. Define event types (start, stop, transcription_complete, error)
+3. Implement state transition logic with validation
+4. Add event emitter for state changes
+5. Include context tracking (current window info placeholder)
+
+**Files to Create**:
+- `src/daemon/state.ts`
+
+**Tests** (unit tests - no external deps):
+- [ ] `idle` + `start` → `recording`
+- [ ] `recording` + `stop` → `transcribing`
+- [ ] `transcribing` + `complete` → `idle`
+- [ ] `idle` + `stop` → error (invalid transition)
+- [ ] `recording` + `start` → error (already recording)
+- [ ] State change events fire correctly
+
+**Acceptance Criteria**:
+- [ ] State machine is pure (no I/O, easily testable)
+- [ ] All valid transitions work
+- [ ] Invalid transitions throw descriptive errors
+- [ ] 100% test coverage on state module
+
+---
+
+### Step 2b: Unix Socket Server & IPC
+
+**Goal**: Daemon that accepts IPC commands over Unix socket.
+
+**Tasks**:
+1. Create Unix socket server with JSON protocol
+2. Wire command handlers to state machine
+3. Implement commands: start, stop, status, shutdown
+4. Add PID file management
+5. Add auto-cleanup of stale sockets/PID files
+6. Add SIGTERM/SIGINT handlers for graceful shutdown
+
+**Files to Create/Modify**:
+- `src/daemon/server.ts` (socket server)
+- `src/daemon/handler.ts` (command dispatch)
+- `src/index.ts` (add `daemon` command)
+
+**Tests**:
+- [ ] Socket accepts connections and parses JSON commands
+- [ ] Status command returns current state
+- [ ] Shutdown command cleanly exits
+- [ ] Stale socket files are cleaned up on startup
+- [ ] SIGTERM triggers graceful shutdown
+- [ ] Malformed JSON returns error response
+
+**Acceptance Criteria**:
+- [ ] `whispertui daemon` starts and listens on socket
+- [ ] Multiple commands can be sent over same socket connection
+- [ ] Socket has 0600 permissions
+- [ ] PID file created and removed on clean shutdown
+- [ ] `kill -TERM <pid>` shuts down gracefully
+
+---
+
+## Stage 3: CLI Client
+
+### Step 3a: Socket Client
+
+**Goal**: CLI client that sends commands to daemon over Unix socket.
+
+**Tasks**:
+1. Implement socket client (connect, send JSON, receive response)
+2. Add connection timeout handling
+3. Wire up CLI commands to socket client (start, stop, toggle, status, shutdown)
+4. Display responses and errors to user
+
+**Files to Create/Modify**:
+- `src/client/index.ts` (socket client)
+- `src/index.ts` (wire up CLI commands)
+
+**Tests**:
+- [ ] Client connects to existing socket
+- [ ] Client sends JSON commands correctly
+- [ ] Client receives and parses JSON responses
+- [ ] Connection refused handled gracefully
+- [ ] Connection timeout handled gracefully
+- [ ] Error responses displayed to user
+
+**Acceptance Criteria**:
+- [ ] With daemon running: `whispertui status` returns state
+- [ ] With daemon running: `whispertui start` → `whispertui stop` works
+- [ ] Without daemon: commands fail with clear "daemon not running" message
+
+---
+
+### Step 3b: Daemon Auto-Start
+
+**Goal**: Automatically start daemon when CLI commands are run.
+
+**Tasks**:
+1. Implement daemon spawn (background process)
+2. Add daemon health check (socket exists + responds to ping)
+3. Implement wait-for-ready with timeout
+4. Integrate auto-start into CLI command flow
+
+**Files to Create/Modify**:
+- `src/client/index.ts` (add auto-start logic)
+- `src/daemon/server.ts` (add ping/health command if needed)
+
+**Tests**:
+- [ ] Auto-start spawns daemon process
+- [ ] Wait-for-ready polls until socket responds
+- [ ] Timeout if daemon fails to start
+- [ ] Subsequent commands use running daemon
+- [ ] Multiple rapid commands don't spawn multiple daemons
+
+**Acceptance Criteria**:
+- [ ] `whispertui status` auto-starts daemon if not running
+- [ ] First command has slight delay (daemon startup)
+- [ ] Subsequent commands are instant
+- [ ] Failed daemon start shows clear error
+
+---
+
+## Stage 4: Core MVP
+
+### Step 4: Audio Recording
+
+**Goal**: Record audio via parecord subprocess.
+
+**Tasks**:
+1. Create parecord wrapper (spawn, capture to file)
+2. Implement recording start/stop control
+3. Handle audio device selection from config
+4. Add temp file management in cache directory
+
+**Files to Create/Modify**:
+- `src/audio/recorder.ts`
+- `src/daemon/handler.ts` (integrate recording)
+
+**Tests**:
+- [ ] Recording starts parecord process
+- [ ] Recording stop terminates process gracefully
+- [ ] WAV file created with correct format (16kHz, mono)
+- [ ] Recording timeout protection (max duration)
+- [ ] Missing parecord binary gives clear error
+
+**Acceptance Criteria**:
+- [ ] `whispertui start` begins recording (verify with `pgrep parecord`)
+- [ ] `whispertui stop` stops recording
+- [ ] Audio file exists in `~/.cache/whispertui/`
+- [ ] Audio is valid WAV (playable with `aplay`)
+
+---
+
+### Step 5: Groq API Integration
+
+**Goal**: Transcribe audio files via Groq Whisper API.
+
+**Tasks**:
+1. Implement Groq API client
+2. Handle API key from environment variable
+3. Parse transcription response
+4. Add error handling (rate limits, network errors, invalid audio)
+
+**Files to Create/Modify**:
+- `src/transcription/groq.ts`
+- `src/daemon/handler.ts` (integrate transcription)
+
+**Tests**:
+- [ ] API call succeeds with valid audio
+- [ ] Missing API key gives clear error
+- [ ] API errors (401, 429, 500) handled with retry/feedback
+- [ ] Large files handled correctly
+- [ ] Empty audio handled gracefully
+
+**Acceptance Criteria**:
+- [ ] Record audio → transcription returns text
+- [ ] Transcription printed to stdout on `whispertui stop`
+- [ ] Clear error message if GROQ_API_KEY not set
+- [ ] API errors reported via notify-send
+
+---
+
+### Step 6a: Clipboard Output
+
+**Goal**: Copy transcribed text to clipboard via wl-copy.
+
+**Tasks**:
+1. Implement wl-copy wrapper
+2. Integrate clipboard copy into transcription flow
+3. Handle missing wl-copy binary
+4. Handle special characters (newlines, quotes, unicode)
+
+**Files to Create/Modify**:
+- `src/output/clipboard.ts`
+- `src/daemon/handler.ts` (integrate clipboard output)
+
+**Tests**:
+- [ ] wl-copy puts text in clipboard
+- [ ] Missing wl-copy gives clear error
+- [ ] Newlines preserved in clipboard
+- [ ] Unicode characters handled correctly
+- [ ] Empty text handled gracefully
+
+**Acceptance Criteria**:
+- [ ] After transcription, text appears in clipboard (`wl-paste`)
+- [ ] `whispertui stop` outputs text and copies to clipboard
+- [ ] Clear error if wl-copy not installed
+
+---
+
+### Step 6b: Auto-Type Output
+
+**Goal**: Optionally type transcribed text into focused window via wtype.
+
+**Tasks**:
+1. Implement wtype wrapper
+2. Add output mode selection from config (wtype vs clipboard-only)
+3. Implement fallback (wtype fails → clipboard only + notification)
+4. Handle typing delays and special characters
+
+**Files to Create/Modify**:
+- `src/output/typer.ts`
+- `src/daemon/handler.ts` (integrate typer with fallback)
+
+**Tests**:
+- [ ] wtype types text into focused window
+- [ ] Missing wtype falls back to clipboard
+- [ ] wtype failure falls back to clipboard
+- [ ] Config switches between paste methods
+- [ ] Special characters (quotes, brackets) typed correctly
+
+**Acceptance Criteria**:
+- [ ] With auto_paste=true and paste_method=wtype, text is typed
+- [ ] With paste_method=clipboard-only, only clipboard is used
+- [ ] wtype failure notifies user but text is still in clipboard
+- [ ] Config option respected
+
+---
+
+## Stage 5: Polish
+
+### Step 7: Notifications
+
+**Goal**: User feedback via desktop notifications.
+
+**Tasks**:
+1. Implement notify-send wrapper
+2. Add notifications for: recording started, transcription complete, errors
+3. Make notifications configurable (on/off)
+
+**Files to Create/Modify**:
+- `src/notify/index.ts`
+- Integrate throughout daemon handlers
+
+**Tests**:
+- [ ] Notifications appear for key events
+- [ ] Missing notify-send handled gracefully
+- [ ] Notifications can be disabled via config
+
+**Acceptance Criteria**:
+- [ ] "Recording started" notification on start
+- [ ] "Transcription complete" notification with preview
+- [ ] Error notifications show actionable messages
+
+---
+
+### Step 8: History Storage
+
+**Goal**: Save and retrieve transcription history.
+
+**Tasks**:
+1. Implement history writer (timestamped files)
+2. Implement history reader (list, limit)
+3. Add history CLI command
+4. Implement history pruning (max_entries)
+
+**Files to Create/Modify**:
+- `src/history/index.ts`
+- `src/index.ts` (add history command)
+- `src/daemon/handler.ts` (save after transcription)
+
+**Tests**:
+- [ ] Transcriptions saved to history directory
+- [ ] History list returns entries in reverse chronological order
+- [ ] Limit parameter works
+- [ ] Pruning removes oldest entries beyond max
+
+**Acceptance Criteria**:
+- [ ] Each transcription creates file in `~/.local/share/whispertui/history/`
+- [ ] `whispertui history` lists recent transcriptions
+- [ ] `whispertui history --limit 5` limits output
+- [ ] Old entries pruned when exceeding max_entries
+
+---
+
+### Step 9: Context Detection
+
+**Goal**: Detect focused application for context-aware behavior.
+
+**Tasks**:
+1. Implement hyprctl wrapper (get active window)
+2. Parse window class/title
+3. Detect code-aware apps from config list
+4. Expose context info in daemon state
+
+**Files to Create/Modify**:
+- `src/context/hyprland.ts`
+- `src/daemon/state.ts` (add context field)
+- `src/daemon/handler.ts` (detect context on start)
+
+**Tests**:
+- [ ] hyprctl output parsed correctly
+- [ ] Code-aware apps detected by window class
+- [ ] Missing hyprctl handled (non-Hyprland fallback)
+- [ ] Context included in status response
+
+**Acceptance Criteria**:
+- [ ] `whispertui status` shows current window context
+- [ ] Terminal apps detected as code-aware
+- [ ] Context detection doesn't block recording start
+
+---
+
+## Stage 6: TUI
+
+### Step 10: TUI Foundation (Ink Setup)
+
+**Goal**: Basic Ink TUI with recording indicator.
+
+**Tasks**:
+1. Set up Ink with React/TypeScript
+2. Create main App component
+3. Implement RecordingIndicator component
+4. Wire TUI to daemon via socket client
+5. Add keyboard shortcuts (Enter to toggle, q to quit)
+
+**Files to Create/Modify**:
+- `src/ui/App.tsx`
+- `src/ui/components/RecordingIndicator.tsx`
+- `src/index.ts` (add tui command)
+
+**Tests**:
+- [ ] TUI launches and connects to daemon
+- [ ] Recording indicator updates with state changes
+- [ ] Keyboard shortcuts work
+- [ ] Clean exit on quit
+
+**Acceptance Criteria**:
+- [ ] `whispertui tui` launches interactive interface
+- [ ] Shows current recording state (idle/recording/transcribing)
+- [ ] Press Enter toggles recording
+- [ ] Press q quits cleanly
+
+---
+
+### Step 11: TUI History Browser
+
+**Goal**: Browse and select from transcription history in TUI.
+
+**Tasks**:
+1. Create History component (scrollable list)
+2. Implement selection and copy-to-clipboard
+3. Add search/filter functionality
+4. Integrate with main TUI app
+
+**Files to Create/Modify**:
+- `src/ui/components/History.tsx`
+- `src/ui/App.tsx` (add history view)
+
+**Tests**:
+- [ ] History entries displayed
+- [ ] Arrow keys navigate list
+- [ ] Enter copies selected entry to clipboard
+- [ ] Search filters results
+
+**Acceptance Criteria**:
+- [ ] TUI shows recent transcriptions
+- [ ] Navigate with arrow keys
+- [ ] Enter copies selected to clipboard
+- [ ] Type to search/filter
+
+---
+
+## Stage 7: Final Integration
+
+### Step 12a: Doctor Command
+
+**Goal**: Dependency checker utility for troubleshooting.
+
+**Tasks**:
+1. Create doctor module that checks all external dependencies
+2. Check for: bun, parecord, wl-copy, wtype, notify-send, hyprctl
+3. Report version info for found tools
+4. Report installation instructions for missing tools
+5. Check for GROQ_API_KEY environment variable
+
+**Files to Create/Modify**:
+- `src/doctor/index.ts`
+- `src/index.ts` (add doctor command)
+
+**Tests**:
+- [ ] Doctor detects present dependencies with checkmark
+- [ ] Doctor detects missing dependencies with X
+- [ ] Doctor shows version for each tool
+- [ ] Doctor shows install command for missing tools
+- [ ] Doctor checks GROQ_API_KEY presence
+
+**Acceptance Criteria**:
+- [ ] `whispertui doctor` lists all dependencies
+- [ ] Each dependency shows: name, status, version or install hint
+- [ ] Exit code 0 if all OK, non-zero if missing dependencies
+- [ ] GROQ_API_KEY shown as set/not set (not the actual value)
+
+---
+
+### Step 12b: Hyprland Integration & Polish
+
+**Goal**: Startup script, keybind docs, and final polish.
+
+**Tasks**:
+1. Create Hyprland startup script
+2. Document keybind configuration in README
+3. Add `config --edit` command (opens config in $EDITOR)
+4. Final error handling review
+5. Add graceful degradation for missing optional dependencies
+
+**Files to Create/Modify**:
+- `scripts/hyprland-startup.sh`
+- `README.md`
+- `src/index.ts` (add config --edit)
+
+**Tests**:
+- [ ] Startup script launches daemon correctly
+- [ ] Config edit opens $EDITOR
+- [ ] Config edit creates default config if missing
+- [ ] Missing optional deps (notify-send, hyprctl) don't crash
+
+**Acceptance Criteria**:
+- [ ] `exec-once = whispertui daemon &` works in Hyprland
+- [ ] README documents push-to-talk keybind setup
+- [ ] `whispertui config --edit` opens config in editor
+- [ ] Missing hyprctl doesn't crash (context detection disabled)
+- [ ] Missing notify-send doesn't crash (notifications disabled)
+
+---
+
+## Dependency Checklist
+
+| Step | Dependencies |
+|------|--------------|
+| 1a | bun |
+| 1b | @iarna/toml, zod (npm packages) |
+| 2a | (none - pure TypeScript) |
+| 2b | (none) |
+| 3a | (none) |
+| 3b | (none) |
+| 4 | parecord (pulseaudio-utils) |
+| 5 | GROQ_API_KEY env var |
+| 6a | wl-copy (wl-clipboard) |
+| 6b | wtype |
+| 7 | notify-send (libnotify) |
+| 8 | (none) |
+| 9 | hyprctl (Hyprland) |
+| 10 | ink (npm package) |
+| 11 | (none) |
+| 12a | (none) |
+| 12b | (none) |
+
+---
+
+## Testing Strategy
+
+Each step should include:
+1. **Unit tests**: Pure function logic (Bun test runner: `bun test`)
+2. **Integration tests**: Component interactions with mocks
+3. **Manual verification**: Actual system behavior
+
+### Mocking External Processes
+
+For tests that interact with external tools (parecord, wl-copy, hyprctl, Groq API):
+
+- **Unit tests**: Mock the spawn/fetch calls, test the wrapper logic
+- **Integration tests**: Use mock executables or environment stubs
+- **Manual tests**: Run against real system tools
+
+---
+
+## Deferred to v2
+
+The following features from the product spec are not in this plan:
+
+- Text cleanup levels (raw/clean/formatted)
+- Code-aware mode with technical vocabulary
+- Custom vocabulary and snippets
+- Local Whisper fallback
+- Voice commands ("delete last sentence", etc.)
+- Multi-language support
