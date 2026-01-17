@@ -180,20 +180,42 @@ Each Claude instance should read this at the start and append notes at the end.
 - `extractHistoryConfig()` extracts history settings from app Config
 - 38 new tests covering all history functions and HistoryManager class
 
+### 2026-01-17: Step 9 - Context Detection
+
+- Created `src/context/hyprland.ts` with Hyprland context detection via hyprctl
+- Custom error classes: `HyprctlNotFoundError`, `HyprctlError`
+- `getActiveWindow()` uses `hyprctl activewindow -j` for JSON output
+- Handles empty/null output when no window is focused
+- `checkHyprctlAvailable()` uses `hyprctl version` to verify installation
+- `isCodeAwareApp()` does case-insensitive substring matching against config list
+- `ContextDetector` class wraps detection with config awareness:
+  - Respects `enabled` config option - returns null if disabled
+  - Caches hyprctl availability check - only checks once
+  - `detectContext()` is best-effort - returns null on any error
+- `extractContextConfig()` extracts context settings from app Config
+- Integrated into `DaemonServer.handleStart()`:
+  - Detects context in background after state transition
+  - Uses `setWindowContext()` on state machine
+  - Context detection failure doesn't affect recording
+- Context is included in status response via `getSnapshot().context`
+- Config already had `context.enabled` and `context.code_aware_apps` from earlier work
+- Default code-aware apps: Alacritty, kitty, foot, nvim, code, Code
+- 21 new tests covering hyprctl wrapper, isCodeAwareApp, ContextDetector class
+
 ---
 
 ## Current State
 
-- Project status: Step 8 complete
-- Last completed task: Step 8 - History Storage
+- Project status: Step 9 complete
+- Last completed task: Step 9 - Context Detection
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 9 - Context Detection
-- Need to implement hyprctl wrapper (get active window)
-- Parse window class/title
-- Detect code-aware apps from config list
-- Expose context info in daemon state
+- Next task: Step 10 - TUI Foundation (Ink Setup)
+- Need to set up Ink with React/TypeScript
+- Create main App component and RecordingIndicator component
+- Wire TUI to daemon via socket client
+- Add keyboard shortcuts (Enter to toggle, q to quit)

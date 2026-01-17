@@ -386,15 +386,15 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/handler.ts` (detect context on start)
 
 **Tests**:
-- [ ] hyprctl output parsed correctly
-- [ ] Code-aware apps detected by window class
-- [ ] Missing hyprctl handled (non-Hyprland fallback)
-- [ ] Context included in status response
+- [x] hyprctl output parsed correctly
+- [x] Code-aware apps detected by window class
+- [x] Missing hyprctl handled (non-Hyprland fallback)
+- [x] Context included in status response
 
 **Acceptance Criteria**:
-- [ ] `whispertui status` shows current window context
-- [ ] Terminal apps detected as code-aware
-- [ ] Context detection doesn't block recording start
+- [x] `whispertui status` shows current window context
+- [x] Terminal apps detected as code-aware
+- [x] Context detection doesn't block recording start
 
 ---
 

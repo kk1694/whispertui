@@ -57,6 +57,12 @@ import {
   extractHistoryConfig,
   type HistoryConfig,
 } from "../history/index.ts";
+import {
+  ContextDetector,
+  createContextDetector,
+  extractContextConfig,
+  type ContextConfig,
+} from "../context/hyprland.ts";
 import type { Config } from "../config/schema.ts";
 
 /** Commands that can be sent to the daemon */
@@ -97,6 +103,7 @@ export interface DaemonServerOptions {
   outputConfig?: OutputConfig;
   notificationConfig?: NotificationConfig;
   historyConfig?: HistoryConfig;
+  contextConfig?: ContextConfig;
 }
 
 /** Server lifecycle events */
@@ -218,6 +225,12 @@ const DEFAULT_HISTORY_CONFIG: HistoryConfig = {
   maxEntries: 1000,
 };
 
+/** Default context config when none provided */
+const DEFAULT_CONTEXT_CONFIG: ContextConfig = {
+  enabled: true,
+  codeAwareApps: ["Alacritty", "kitty", "foot", "nvim", "code", "Code"],
+};
+
 /**
  * DaemonServer - Unix socket server with JSON protocol
  */
@@ -232,6 +245,7 @@ export class DaemonServer {
   private outputConfig: OutputConfig;
   private notifier: Notifier;
   private historyManager: HistoryManager;
+  private contextDetector: ContextDetector;
   private currentAudioPath: string | null = null;
 
   constructor(options?: DaemonServerOptions) {
@@ -255,6 +269,10 @@ export class DaemonServer {
     const historyConfig = options?.historyConfig ??
       (options?.config ? extractHistoryConfig(options.config) : DEFAULT_HISTORY_CONFIG);
     this.historyManager = createHistoryManager(historyConfig);
+
+    const contextConfig = options?.contextConfig ??
+      (options?.config ? extractContextConfig(options.config) : DEFAULT_CONTEXT_CONFIG);
+    this.contextDetector = createContextDetector(contextConfig);
   }
 
   /** Get the state machine instance */
@@ -345,6 +363,16 @@ export class DaemonServer {
       }
       throw error;
     }
+
+    // Detect context in background (don't block recording start)
+    this.contextDetector.detectContext()
+      .then((context) => {
+        this.stateMachine.setWindowContext(context);
+      })
+      .catch(() => {
+        // Context detection failed - silently ignore
+        // Context is best-effort and shouldn't affect recording
+      });
 
     // Send recording started notification
     this.notifier.notifyRecordingStarted();
@@ -659,6 +687,11 @@ export class DaemonServer {
   /** Get history manager instance (for testing) */
   getHistoryManager(): HistoryManager {
     return this.historyManager;
+  }
+
+  /** Get context detector instance (for testing) */
+  getContextDetector(): ContextDetector {
+    return this.contextDetector;
   }
 }
 
