@@ -49,21 +49,33 @@ Each Claude instance should read this at the start and append notes at the end.
 - Test isolation: Use `XDG_STATE_HOME` env var pointing to temp directory with unique PID suffix
 - 30 new tests covering socket server, JSON protocol, commands, PID management, and cleanup
 
+### 2026-01-17: Step 3a - Socket Client
+
+- Socket client uses `connect()` from `node:net` to connect to Unix socket
+- Quick fail by checking socket file exists before attempting connection - saves time when daemon not running
+- Custom error classes (DaemonNotRunningError, ConnectionTimeoutError) help with user-friendly error messages
+- Socket error codes: ECONNREFUSED and ENOENT both indicate daemon not running
+- Response buffering: Accumulate data chunks until newline found, then parse JSON
+- Timeout handling with `setTimeout()` and cleanup function to avoid resource leaks
+- Toggle command needs two round trips: status to check current state, then start or stop
+- Test isolation: Same pattern as server tests - use XDG_STATE_HOME with temp directory
+- Testing timeout: Create mock server that accepts connections but never responds
+- 18 new tests covering client connection, command sending, error handling, and response formatting
+
 ---
 
 ## Current State
 
-- Project status: Step 2b complete
-- Last completed task: Step 2b - Unix Socket Server & IPC
+- Project status: Step 3a complete
+- Last completed task: Step 3a - Socket Client
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 3a - Socket Client
-- Need to implement CLI client that sends commands to daemon over Unix socket
-- Add connection timeout handling
-- Wire up CLI commands (start, stop, toggle, status, shutdown) to socket client
-- Display responses and errors to user
-- Handle "daemon not running" case gracefully
+- Next task: Step 3b - Daemon Auto-Start
+- Need to implement daemon spawn as background process
+- Add daemon health check (socket exists + responds to ping)
+- Implement wait-for-ready with timeout
+- Integrate auto-start into CLI command flow

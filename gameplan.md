@@ -154,17 +154,17 @@ Mark tasks complete by changing [ ] to [x].
 - `src/index.ts` (wire up CLI commands)
 
 **Tests**:
-- [ ] Client connects to existing socket
-- [ ] Client sends JSON commands correctly
-- [ ] Client receives and parses JSON responses
-- [ ] Connection refused handled gracefully
-- [ ] Connection timeout handled gracefully
-- [ ] Error responses displayed to user
+- [x] Client connects to existing socket
+- [x] Client sends JSON commands correctly
+- [x] Client receives and parses JSON responses
+- [x] Connection refused handled gracefully
+- [x] Connection timeout handled gracefully
+- [x] Error responses displayed to user
 
 **Acceptance Criteria**:
-- [ ] With daemon running: `whispertui status` returns state
-- [ ] With daemon running: `whispertui start` → `whispertui stop` works
-- [ ] Without daemon: commands fail with clear "daemon not running" message
+- [x] With daemon running: `whispertui status` returns state
+- [x] With daemon running: `whispertui start` → `whispertui stop` works
+- [x] Without daemon: commands fail with clear "daemon not running" message
 
 ---
 

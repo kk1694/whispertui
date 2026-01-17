@@ -7,6 +7,13 @@
 import { ensureAllDirs, paths } from "./config/paths.ts";
 import { loadConfig, formatConfigError } from "./config/loader.ts";
 import { createDaemonServer, type DaemonServer } from "./daemon/server.ts";
+import {
+  sendCommand,
+  formatResponse,
+  DaemonNotRunningError,
+  ConnectionTimeoutError,
+} from "./client/index.ts";
+import type { DaemonCommand } from "./daemon/server.ts";
 
 const VERSION = "0.1.0";
 
@@ -34,6 +41,73 @@ Options:
 
 function printVersion(): void {
   console.log(`whispertui v${VERSION}`);
+}
+
+/**
+ * Send a command to the daemon and handle errors gracefully
+ */
+async function runClientCommand(command: DaemonCommand): Promise<void> {
+  try {
+    const response = await sendCommand(command);
+    console.log(formatResponse(response));
+    if (!response.success) {
+      process.exit(1);
+    }
+  } catch (error) {
+    if (error instanceof DaemonNotRunningError) {
+      console.error("Error: Daemon is not running");
+      console.error("Start the daemon with: whispertui daemon");
+      process.exit(1);
+    } else if (error instanceof ConnectionTimeoutError) {
+      console.error("Error: Connection to daemon timed out");
+      console.error("The daemon may be unresponsive. Try restarting it.");
+      process.exit(1);
+    } else if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    } else {
+      console.error("Error: Unknown error occurred");
+      process.exit(1);
+    }
+  }
+}
+
+/**
+ * Handle toggle command - start if idle, stop if recording
+ */
+async function runToggleCommand(): Promise<void> {
+  try {
+    // First check current status
+    const statusResponse = await sendCommand("status");
+    if (!statusResponse.success) {
+      console.error(formatResponse(statusResponse));
+      process.exit(1);
+    }
+
+    // Toggle based on current state
+    const command: DaemonCommand = statusResponse.state === "recording" ? "stop" : "start";
+    const response = await sendCommand(command);
+    console.log(formatResponse(response));
+    if (!response.success) {
+      process.exit(1);
+    }
+  } catch (error) {
+    if (error instanceof DaemonNotRunningError) {
+      console.error("Error: Daemon is not running");
+      console.error("Start the daemon with: whispertui daemon");
+      process.exit(1);
+    } else if (error instanceof ConnectionTimeoutError) {
+      console.error("Error: Connection to daemon timed out");
+      console.error("The daemon may be unresponsive. Try restarting it.");
+      process.exit(1);
+    } else if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    } else {
+      console.error("Error: Unknown error occurred");
+      process.exit(1);
+    }
+  }
 }
 
 /**
@@ -115,22 +189,22 @@ async function main(): Promise<void> {
   // Ensure directories exist before any command
   ensureAllDirs();
 
-  // Command routing (stubs for now)
+  // Command routing
   switch (command) {
     case "start":
-      console.log("start: not implemented yet");
+      await runClientCommand("start");
       break;
     case "stop":
-      console.log("stop: not implemented yet");
+      await runClientCommand("stop");
       break;
     case "toggle":
-      console.log("toggle: not implemented yet");
+      await runToggleCommand();
       break;
     case "status":
-      console.log("status: not implemented yet");
+      await runClientCommand("status");
       break;
     case "shutdown":
-      console.log("shutdown: not implemented yet");
+      await runClientCommand("shutdown");
       break;
     case "daemon":
       await runDaemon();
