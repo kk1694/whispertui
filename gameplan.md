@@ -300,17 +300,17 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/handler.ts` (integrate typer with fallback)
 
 **Tests**:
-- [ ] wtype types text into focused window
-- [ ] Missing wtype falls back to clipboard
-- [ ] wtype failure falls back to clipboard
-- [ ] Config switches between paste methods
-- [ ] Special characters (quotes, brackets) typed correctly
+- [x] wtype types text into focused window
+- [x] Missing wtype falls back to clipboard
+- [x] wtype failure falls back to clipboard
+- [x] Config switches between paste methods
+- [x] Special characters (quotes, brackets) typed correctly
 
 **Acceptance Criteria**:
-- [ ] With auto_paste=true and paste_method=wtype, text is typed
-- [ ] With paste_method=clipboard-only, only clipboard is used
-- [ ] wtype failure notifies user but text is still in clipboard
-- [ ] Config option respected
+- [x] With auto_paste=true and paste_method=wtype, text is typed
+- [x] With paste_method=clipboard-only, only clipboard is used
+- [x] wtype failure notifies user but text is still in clipboard
+- [x] Config option respected
 
 ---
 

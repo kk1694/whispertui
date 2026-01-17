@@ -40,6 +40,11 @@ import {
   WlCopyNotFoundError,
   ClipboardError,
 } from "../output/clipboard.ts";
+import {
+  typeText,
+  WtypeNotFoundError,
+  TyperError,
+} from "../output/typer.ts";
 import type { Config } from "../config/schema.ts";
 
 /** Commands that can be sent to the daemon */
@@ -65,12 +70,19 @@ export interface TranscriptionConfig {
   apiKeyEnv: string;
 }
 
+/** Output configuration extracted from Config */
+export interface OutputConfig {
+  autoPaste: boolean;
+  pasteMethod: "wtype" | "clipboard-only";
+}
+
 /** Options for creating a daemon server */
 export interface DaemonServerOptions {
   stateMachine?: StateMachine;
   config?: Config;
   recordingConfig?: RecordingConfig;
   transcriptionConfig?: TranscriptionConfig;
+  outputConfig?: OutputConfig;
 }
 
 /** Server lifecycle events */
@@ -175,6 +187,12 @@ const DEFAULT_TRANSCRIPTION_CONFIG: TranscriptionConfig = {
   apiKeyEnv: "GROQ_API_KEY",
 };
 
+/** Default output config when none provided */
+const DEFAULT_OUTPUT_CONFIG: OutputConfig = {
+  autoPaste: true,
+  pasteMethod: "wtype",
+};
+
 /**
  * DaemonServer - Unix socket server with JSON protocol
  */
@@ -186,6 +204,7 @@ export class DaemonServer {
   private isShuttingDown = false;
   private recorder: AudioRecorder;
   private transcriber: GroqClient;
+  private outputConfig: OutputConfig;
   private currentAudioPath: string | null = null;
 
   constructor(options?: DaemonServerOptions) {
@@ -198,6 +217,9 @@ export class DaemonServer {
     const transcriptionConfig = options?.transcriptionConfig ??
       (options?.config ? extractTranscriptionConfig(options.config) : DEFAULT_TRANSCRIPTION_CONFIG);
     this.transcriber = createGroqClient({ apiKeyEnv: transcriptionConfig.apiKeyEnv });
+
+    this.outputConfig = options?.outputConfig ??
+      (options?.config ? extractOutputConfig(options.config) : DEFAULT_OUTPUT_CONFIG);
   }
 
   /** Get the state machine instance */
@@ -346,21 +368,8 @@ export class DaemonServer {
         try {
           const text = await this.transcriber.transcribe(finalPath);
 
-          // Copy transcribed text to clipboard
-          try {
-            await copyToClipboard(text);
-          } catch (clipboardError) {
-            // Log clipboard error but don't fail the transcription
-            // The text is still available in lastTranscription
-            let clipboardMessage = "Failed to copy to clipboard";
-            if (clipboardError instanceof WlCopyNotFoundError) {
-              clipboardMessage = clipboardError.message;
-            } else if (clipboardError instanceof ClipboardError) {
-              clipboardMessage = clipboardError.message;
-            }
-            // TODO: Send notification about clipboard failure (Step 7)
-            console.error(clipboardMessage);
-          }
+          // Output handling based on config
+          await this.handleOutput(text);
 
           this.stateMachine.send({ type: "transcription_complete", text });
         } catch (error) {
@@ -398,6 +407,51 @@ export class DaemonServer {
       message: "Recording stopped, transcribing...",
       audioPath: audioPath ?? undefined,
     };
+  }
+
+  /**
+   * Handle output after transcription (typing or clipboard)
+   * Uses wtype for auto_paste with paste_method=wtype, otherwise clipboard-only.
+   * Falls back to clipboard if wtype fails.
+   */
+  private async handleOutput(text: string): Promise<void> {
+    // Always copy to clipboard first (as fallback/primary depending on config)
+    let clipboardSuccess = false;
+    try {
+      await copyToClipboard(text);
+      clipboardSuccess = true;
+    } catch (clipboardError) {
+      let clipboardMessage = "Failed to copy to clipboard";
+      if (clipboardError instanceof WlCopyNotFoundError) {
+        clipboardMessage = clipboardError.message;
+      } else if (clipboardError instanceof ClipboardError) {
+        clipboardMessage = clipboardError.message;
+      }
+      // TODO: Send notification about clipboard failure (Step 7)
+      console.error(clipboardMessage);
+    }
+
+    // If auto_paste is enabled and paste_method is wtype, try to type the text
+    if (this.outputConfig.autoPaste && this.outputConfig.pasteMethod === "wtype") {
+      try {
+        await typeText(text);
+      } catch (typeError) {
+        // wtype failed - text is already in clipboard as fallback
+        let typeMessage = "Failed to type text";
+        if (typeError instanceof WtypeNotFoundError) {
+          typeMessage = typeError.message;
+        } else if (typeError instanceof TyperError) {
+          typeMessage = typeError.message;
+        }
+        // TODO: Send notification about wtype failure (Step 7)
+        console.error(typeMessage);
+        if (clipboardSuccess) {
+          console.error("Text is available in clipboard");
+        }
+      }
+    }
+    // If paste_method is clipboard-only or auto_paste is false,
+    // we've already copied to clipboard above
   }
 
   /**
@@ -544,6 +598,11 @@ export class DaemonServer {
   getCurrentAudioPath(): string | null {
     return this.currentAudioPath;
   }
+
+  /** Get output config (for testing) */
+  getOutputConfig(): OutputConfig {
+    return this.outputConfig;
+  }
 }
 
 /**
@@ -552,6 +611,16 @@ export class DaemonServer {
 export function extractTranscriptionConfig(config: Config): TranscriptionConfig {
   return {
     apiKeyEnv: config.transcription.api_key_env,
+  };
+}
+
+/**
+ * Extract output config from application Config
+ */
+export function extractOutputConfig(config: Config): OutputConfig {
+  return {
+    autoPaste: config.output.auto_paste,
+    pasteMethod: config.output.paste_method,
   };
 }
 

@@ -121,20 +121,36 @@ Each Claude instance should read this at the start and append notes at the end.
 - Updated `formatResponse()` in client to show transcription text and "(Copied to clipboard)" message
 - 13 new tests covering clipboard operations, error handling, and integration with wl-paste verification
 
+### 2026-01-17: Step 6b - Auto-Type Output
+
+- Created `src/output/typer.ts` with `typeText()` function using wtype subprocess
+- Custom error classes: `WtypeNotFoundError` (with install instructions), `TyperError`
+- wtype uses stdin mode with `-` argument to receive text to type
+- Delay option supported with `-d` flag for milliseconds between keystrokes
+- Empty text handled gracefully (returns immediately without starting wtype)
+- Added `checkWtypeAvailable()` helper - wtype doesn't have --version, so we check via --help
+- Added `OutputConfig` interface with `autoPaste` and `pasteMethod` fields
+- Added `extractOutputConfig()` function to extract output settings from Config
+- Integrated output handling into `DaemonServer.handleStop()` with new `handleOutput()` method
+- Output flow: Always copy to clipboard first (as fallback), then try wtype if configured
+- wtype failure falls back silently to clipboard - text is still available
+- Config option `paste_method: "wtype" | "clipboard-only"` controls behavior
+- 12 new tests covering typer module and error handling
+
 ---
 
 ## Current State
 
-- Project status: Step 6a complete
-- Last completed task: Step 6a - Clipboard Output
+- Project status: Step 6b complete
+- Last completed task: Step 6b - Auto-Type Output
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 6b - Auto-Type Output
-- Need to implement wtype wrapper for typing text into focused window
-- Add output mode selection from config (wtype vs clipboard-only)
-- Implement fallback (wtype fails → clipboard only + notification)
-- Handle typing delays and special characters
+- Next task: Step 7 - Notifications
+- Need to implement notify-send wrapper for desktop notifications
+- Add notifications for: recording started, transcription complete, errors
+- Make notifications configurable (on/off via config)
+- This will also enable the deferred Step 5 acceptance criteria: "API errors reported via notify-send"
