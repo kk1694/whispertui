@@ -232,7 +232,7 @@ Mark tasks complete by changing [ ] to [x].
 
 **Tasks**:
 1. Implement Groq API client
-2. Handle API key from environment variable
+2. Handle API key from `.env` file (GROQ_API_KEY)
 3. Parse transcription response
 4. Add error handling (rate limits, network errors, invalid audio)
 
@@ -250,7 +250,7 @@ Mark tasks complete by changing [ ] to [x].
 **Acceptance Criteria**:
 - [ ] Record audio → transcription returns text
 - [ ] Transcription printed to stdout on `whispertui stop`
-- [ ] Clear error message if GROQ_API_KEY not set
+- [ ] Clear error message if GROQ_API_KEY not set in `.env` or environment
 - [ ] API errors reported via notify-send
 
 ---
