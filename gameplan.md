@@ -243,16 +243,16 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/handler.ts` (integrate transcription)
 
 **Tests**:
-- [ ] API call succeeds with valid audio
-- [ ] Missing API key gives clear error
-- [ ] API errors (401, 429, 500) handled with retry/feedback
-- [ ] Large files handled correctly
-- [ ] Empty audio handled gracefully
+- [x] API call succeeds with valid audio
+- [x] Missing API key gives clear error
+- [x] API errors (401, 429, 500) handled with retry/feedback
+- [x] Large files handled correctly
+- [x] Empty audio handled gracefully
 
 **Acceptance Criteria**:
-- [ ] Record audio → transcription returns text
-- [ ] Transcription printed to stdout on `whispertui stop`
-- [ ] Clear error message if GROQ_API_KEY not set in `.env` or environment
+- [x] Record audio → transcription returns text
+- [x] Transcription printed to stdout on `whispertui stop`
+- [x] Clear error message if GROQ_API_KEY not set in `.env` or environment
 - [ ] API errors reported via notify-send
 
 ---

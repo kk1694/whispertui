@@ -28,6 +28,13 @@ import {
   RecordingError,
   type RecordingConfig,
 } from "../audio/recorder.ts";
+import {
+  GroqClient,
+  createGroqClient,
+  MissingApiKeyError,
+  TranscriptionApiError,
+  InvalidAudioError,
+} from "../transcription/groq.ts";
 import type { Config } from "../config/schema.ts";
 
 /** Commands that can be sent to the daemon */
@@ -48,11 +55,17 @@ export interface DaemonResponse {
   audioPath?: string;
 }
 
+/** Transcription configuration extracted from Config */
+export interface TranscriptionConfig {
+  apiKeyEnv: string;
+}
+
 /** Options for creating a daemon server */
 export interface DaemonServerOptions {
   stateMachine?: StateMachine;
   config?: Config;
   recordingConfig?: RecordingConfig;
+  transcriptionConfig?: TranscriptionConfig;
 }
 
 /** Server lifecycle events */
@@ -152,6 +165,11 @@ const DEFAULT_RECORDING_CONFIG: RecordingConfig = {
   format: "wav",
 };
 
+/** Default transcription config when none provided */
+const DEFAULT_TRANSCRIPTION_CONFIG: TranscriptionConfig = {
+  apiKeyEnv: "GROQ_API_KEY",
+};
+
 /**
  * DaemonServer - Unix socket server with JSON protocol
  */
@@ -162,6 +180,7 @@ export class DaemonServer {
   private listeners: Set<ServerEventListener> = new Set();
   private isShuttingDown = false;
   private recorder: AudioRecorder;
+  private transcriber: GroqClient;
   private currentAudioPath: string | null = null;
 
   constructor(options?: DaemonServerOptions) {
@@ -170,6 +189,10 @@ export class DaemonServer {
     const recordingConfig = options?.recordingConfig ??
       (options?.config ? extractRecordingConfig(options.config) : DEFAULT_RECORDING_CONFIG);
     this.recorder = createAudioRecorder(recordingConfig);
+
+    const transcriptionConfig = options?.transcriptionConfig ??
+      (options?.config ? extractTranscriptionConfig(options.config) : DEFAULT_TRANSCRIPTION_CONFIG);
+    this.transcriber = createGroqClient({ apiKeyEnv: transcriptionConfig.apiKeyEnv });
   }
 
   /** Get the state machine instance */
@@ -309,16 +332,29 @@ export class DaemonServer {
 
     const audioPath = this.currentAudioPath;
 
-    // Stop recording in background
+    // Stop recording and transcribe in background
     this.recorder.stop()
-      .then((finalPath) => {
-        // Recording stopped successfully
-        // The audio file is ready for transcription
-        // For now, we'll simulate transcription complete (Step 5 will add real transcription)
+      .then(async (finalPath) => {
+        // Recording stopped successfully - now transcribe
         this.currentAudioPath = finalPath;
-        // Note: In Step 5, we'll call the transcription service here
-        // For now, just transition to idle with a placeholder
-        this.stateMachine.send({ type: "transcription_complete", text: "[Transcription pending - implement in Step 5]" });
+
+        try {
+          const text = await this.transcriber.transcribe(finalPath);
+          this.stateMachine.send({ type: "transcription_complete", text });
+        } catch (error) {
+          // Transcription failed
+          let message = "Transcription failed";
+          if (error instanceof MissingApiKeyError) {
+            message = error.message;
+          } else if (error instanceof TranscriptionApiError) {
+            message = error.message;
+          } else if (error instanceof InvalidAudioError) {
+            message = error.message;
+          } else if (error instanceof Error) {
+            message = error.message;
+          }
+          this.stateMachine.send({ type: "error", message });
+        }
       })
       .catch((error) => {
         // Recording stop failed
@@ -486,6 +522,15 @@ export class DaemonServer {
   getCurrentAudioPath(): string | null {
     return this.currentAudioPath;
   }
+}
+
+/**
+ * Extract transcription config from application Config
+ */
+export function extractTranscriptionConfig(config: Config): TranscriptionConfig {
+  return {
+    apiKeyEnv: config.transcription.api_key_env,
+  };
 }
 
 /**

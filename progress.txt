@@ -91,20 +91,37 @@ Each Claude instance should read this at the start and append notes at the end.
 - `cleanupOldRecordings()` helper to prune old temp files from cache directory
 - 26 new tests covering recorder lifecycle, error handling, config extraction, and cleanup
 
+### 2026-01-17: Step 5 - Groq API Integration
+
+- Created `src/transcription/groq.ts` with `GroqClient` class for Whisper transcription
+- Custom error classes: `MissingApiKeyError`, `TranscriptionApiError`, `InvalidAudioError`
+- API key handling: Check config `api_key_env` for env var name, then read from `process.env`
+- Direct API key support: Can pass `apiKey` directly to bypass env var lookup
+- Groq API uses multipart/form-data with `FormData` and `Blob` for file upload
+- Model: `whisper-large-v3` with JSON response format
+- Request timeout with `AbortController` and configurable timeout (default 60s)
+- Retry logic with exponential backoff for retryable errors (429, 5xx, network errors)
+- Non-retryable errors: 401, 400 - fail immediately with descriptive messages
+- Audio file validation: Check file exists, non-empty, at least 44 bytes (WAV header size)
+- Integrated transcription into `DaemonServer.handleStop()` - transcribes after recording stops
+- `extractTranscriptionConfig()` helper extracts config from app Config object
+- Mocking fetch in Bun tests: Use `mock()` with cast `as unknown as typeof fetch` to satisfy TypeScript
+- 30+ new tests covering client creation, API key handling, transcription, error handling, and retries
+
 ---
 
 ## Current State
 
-- Project status: Step 4 complete
-- Last completed task: Step 4 - Audio Recording
+- Project status: Step 5 complete
+- Last completed task: Step 5 - Groq API Integration
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 5 - Groq API Integration
-- Need to implement Groq API client for Whisper transcription
-- Handle API key from `.env` file (GROQ_API_KEY)
-- Parse transcription response and integrate with daemon
-- Add error handling for rate limits, network errors, invalid audio
+- Next task: Step 6a - Clipboard Output
+- Need to implement wl-copy wrapper for copying text to clipboard
+- Integrate clipboard copy into transcription flow
+- Handle missing wl-copy binary gracefully
+- Handle special characters (newlines, quotes, unicode)
