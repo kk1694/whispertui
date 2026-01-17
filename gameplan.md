@@ -214,17 +214,17 @@ Mark tasks complete by changing [ ] to [x].
 - `src/daemon/handler.ts` (integrate recording)
 
 **Tests**:
-- [ ] Recording starts parecord process
-- [ ] Recording stop terminates process gracefully
-- [ ] WAV file created with correct format (16kHz, mono)
-- [ ] Recording timeout protection (max duration)
-- [ ] Missing parecord binary gives clear error
+- [x] Recording starts parecord process
+- [x] Recording stop terminates process gracefully
+- [x] WAV file created with correct format (16kHz, mono)
+- [x] Recording timeout protection (max duration)
+- [x] Missing parecord binary gives clear error
 
 **Acceptance Criteria**:
-- [ ] `whispertui start` begins recording (verify with `pgrep parecord`)
-- [ ] `whispertui stop` stops recording
-- [ ] Audio file exists in `~/.cache/whispertui/`
-- [ ] Audio is valid WAV (playable with `aplay`)
+- [x] `whispertui start` begins recording (verify with `pgrep parecord`)
+- [x] `whispertui stop` stops recording
+- [x] Audio file exists in `~/.cache/whispertui/`
+- [x] Audio is valid WAV (playable with `aplay`)
 
 ---
 

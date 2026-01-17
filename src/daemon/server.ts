@@ -13,13 +13,22 @@ import {
   readFileSync,
   chmodSync,
 } from "node:fs";
-import { getSocketPath, getPidPath, ensureDir, getStateDir } from "../config/paths.ts";
+import { getSocketPath, getPidPath, ensureDir, getStateDir, getCacheDir } from "../config/paths.ts";
 import {
   createStateMachine,
   type StateMachine,
   type DaemonStateSnapshot,
   InvalidTransitionError,
 } from "./state.ts";
+import {
+  AudioRecorder,
+  createAudioRecorder,
+  extractRecordingConfig,
+  ParecordNotFoundError,
+  RecordingError,
+  type RecordingConfig,
+} from "../audio/recorder.ts";
+import type { Config } from "../config/schema.ts";
 
 /** Commands that can be sent to the daemon */
 export type DaemonCommand = "start" | "stop" | "status" | "shutdown" | "ping";
@@ -36,6 +45,14 @@ export interface DaemonResponse {
   context?: DaemonStateSnapshot["context"];
   error?: string;
   message?: string;
+  audioPath?: string;
+}
+
+/** Options for creating a daemon server */
+export interface DaemonServerOptions {
+  stateMachine?: StateMachine;
+  config?: Config;
+  recordingConfig?: RecordingConfig;
 }
 
 /** Server lifecycle events */
@@ -128,6 +145,13 @@ export function removePidFile(): void {
   }
 }
 
+/** Default recording config when none provided */
+const DEFAULT_RECORDING_CONFIG: RecordingConfig = {
+  device: "default",
+  sampleRate: 16000,
+  format: "wav",
+};
+
 /**
  * DaemonServer - Unix socket server with JSON protocol
  */
@@ -137,9 +161,15 @@ export class DaemonServer {
   private clients: Set<Socket> = new Set();
   private listeners: Set<ServerEventListener> = new Set();
   private isShuttingDown = false;
+  private recorder: AudioRecorder;
+  private currentAudioPath: string | null = null;
 
-  constructor(stateMachine?: StateMachine) {
-    this.stateMachine = stateMachine ?? createStateMachine();
+  constructor(options?: DaemonServerOptions) {
+    this.stateMachine = options?.stateMachine ?? createStateMachine();
+
+    const recordingConfig = options?.recordingConfig ??
+      (options?.config ? extractRecordingConfig(options.config) : DEFAULT_RECORDING_CONFIG);
+    this.recorder = createAudioRecorder(recordingConfig);
   }
 
   /** Get the state machine instance */
@@ -161,6 +191,8 @@ export class DaemonServer {
 
   /**
    * Handle incoming command and return response
+   * Note: start and stop are async but we handle them synchronously for the protocol.
+   * The actual recording operations happen in the background.
    */
   handleCommand(request: DaemonRequest): DaemonResponse {
     this.emit("command_received", request);
@@ -179,52 +211,22 @@ export class DaemonServer {
           success: true,
           state: snapshot.state,
           context: snapshot.context,
+          audioPath: this.currentAudioPath ?? undefined,
         };
       }
 
       case "start":
-        try {
-          this.stateMachine.send({ type: "start" });
-          const snapshot = this.stateMachine.getSnapshot();
-          return {
-            success: true,
-            state: snapshot.state,
-            context: snapshot.context,
-            message: "Recording started",
-          };
-        } catch (error) {
-          if (error instanceof InvalidTransitionError) {
-            return {
-              success: false,
-              state: this.stateMachine.state,
-              error: error.message,
-            };
-          }
-          throw error;
-        }
+        return this.handleStart();
 
       case "stop":
-        try {
-          this.stateMachine.send({ type: "stop" });
-          const snapshot = this.stateMachine.getSnapshot();
-          return {
-            success: true,
-            state: snapshot.state,
-            context: snapshot.context,
-            message: "Recording stopped, transcribing...",
-          };
-        } catch (error) {
-          if (error instanceof InvalidTransitionError) {
-            return {
-              success: false,
-              state: this.stateMachine.state,
-              error: error.message,
-            };
-          }
-          throw error;
-        }
+        return this.handleStop();
 
       case "shutdown":
+        // Abort any ongoing recording before shutdown
+        if (this.recorder.isRecording) {
+          this.recorder.abort();
+          this.currentAudioPath = null;
+        }
         // Mark as shutting down - actual shutdown happens after response is sent
         this.isShuttingDown = true;
         return {
@@ -239,6 +241,105 @@ export class DaemonServer {
           error: `Unknown command: ${request.command}`,
         };
     }
+  }
+
+  /**
+   * Handle start command - begin recording
+   */
+  private handleStart(): DaemonResponse {
+    try {
+      // Validate state transition first
+      this.stateMachine.send({ type: "start" });
+    } catch (error) {
+      if (error instanceof InvalidTransitionError) {
+        return {
+          success: false,
+          state: this.stateMachine.state,
+          error: error.message,
+        };
+      }
+      throw error;
+    }
+
+    // Start recording in background
+    this.recorder.start()
+      .then((audioPath) => {
+        this.currentAudioPath = audioPath;
+      })
+      .catch((error) => {
+        // Recording failed - transition to error state
+        let message = "Recording failed";
+        if (error instanceof ParecordNotFoundError) {
+          message = error.message;
+        } else if (error instanceof RecordingError) {
+          message = error.message;
+        } else if (error instanceof Error) {
+          message = error.message;
+        }
+        this.stateMachine.send({ type: "error", message });
+        this.currentAudioPath = null;
+      });
+
+    const snapshot = this.stateMachine.getSnapshot();
+    return {
+      success: true,
+      state: snapshot.state,
+      context: snapshot.context,
+      message: "Recording started",
+    };
+  }
+
+  /**
+   * Handle stop command - stop recording
+   */
+  private handleStop(): DaemonResponse {
+    try {
+      // Validate state transition first
+      this.stateMachine.send({ type: "stop" });
+    } catch (error) {
+      if (error instanceof InvalidTransitionError) {
+        return {
+          success: false,
+          state: this.stateMachine.state,
+          error: error.message,
+        };
+      }
+      throw error;
+    }
+
+    const audioPath = this.currentAudioPath;
+
+    // Stop recording in background
+    this.recorder.stop()
+      .then((finalPath) => {
+        // Recording stopped successfully
+        // The audio file is ready for transcription
+        // For now, we'll simulate transcription complete (Step 5 will add real transcription)
+        this.currentAudioPath = finalPath;
+        // Note: In Step 5, we'll call the transcription service here
+        // For now, just transition to idle with a placeholder
+        this.stateMachine.send({ type: "transcription_complete", text: "[Transcription pending - implement in Step 5]" });
+      })
+      .catch((error) => {
+        // Recording stop failed
+        let message = "Failed to stop recording";
+        if (error instanceof RecordingError) {
+          message = error.message;
+        } else if (error instanceof Error) {
+          message = error.message;
+        }
+        this.stateMachine.send({ type: "error", message });
+        this.currentAudioPath = null;
+      });
+
+    const snapshot = this.stateMachine.getSnapshot();
+    return {
+      success: true,
+      state: snapshot.state,
+      context: snapshot.context,
+      message: "Recording stopped, transcribing...",
+      audioPath: audioPath ?? undefined,
+    };
   }
 
   /**
@@ -375,11 +476,32 @@ export class DaemonServer {
   isRunning(): boolean {
     return this.server !== null && this.server.listening;
   }
+
+  /** Get the audio recorder instance (for testing) */
+  getRecorder(): AudioRecorder {
+    return this.recorder;
+  }
+
+  /** Get current audio path (for testing/debugging) */
+  getCurrentAudioPath(): string | null {
+    return this.currentAudioPath;
+  }
 }
 
 /**
  * Create and return a new DaemonServer instance
  */
-export function createDaemonServer(stateMachine?: StateMachine): DaemonServer {
-  return new DaemonServer(stateMachine);
+export function createDaemonServer(options?: DaemonServerOptions): DaemonServer;
+export function createDaemonServer(stateMachine?: StateMachine): DaemonServer;
+export function createDaemonServer(optionsOrStateMachine?: DaemonServerOptions | StateMachine): DaemonServer {
+  // Handle legacy single-argument StateMachine form
+  // Check if it's a StateMachine by duck-typing (has 'state' getter and 'send' method)
+  if (
+    optionsOrStateMachine &&
+    typeof (optionsOrStateMachine as StateMachine).state === "string" &&
+    typeof (optionsOrStateMachine as StateMachine).send === "function"
+  ) {
+    return new DaemonServer({ stateMachine: optionsOrStateMachine as StateMachine });
+  }
+  return new DaemonServer(optionsOrStateMachine as DaemonServerOptions | undefined);
 }
