@@ -445,16 +445,16 @@ Mark tasks complete by changing [ ] to [x].
 - `src/ui/App.tsx` (add history view)
 
 **Tests**:
-- [ ] History entries displayed
-- [ ] Arrow keys navigate list
-- [ ] Enter copies selected entry to clipboard
-- [ ] Search filters results
+- [x] History entries displayed
+- [x] Arrow keys navigate list
+- [x] Enter copies selected entry to clipboard
+- [x] Search filters results
 
 **Acceptance Criteria**:
-- [ ] TUI shows recent transcriptions
-- [ ] Navigate with arrow keys
-- [ ] Enter copies selected to clipboard
-- [ ] Type to search/filter
+- [x] TUI shows recent transcriptions
+- [x] Navigate with arrow keys
+- [x] Enter copies selected to clipboard
+- [x] Type to search/filter
 
 ---
 

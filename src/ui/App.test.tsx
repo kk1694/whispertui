@@ -2,10 +2,11 @@
  * Tests for TUI App Component
  */
 
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
 import React from "react";
 import { render } from "ink-testing-library";
 import { App } from "./App.tsx";
+import type { HistoryEntry } from "../history/index.ts";
 
 /**
  * Helper to wait for state updates in React
@@ -187,6 +188,101 @@ describe("App", () => {
       // So we test the component with skipDaemon to verify basic rendering works
       const { lastFrame } = render(<App skipDaemon={true} initialState="idle" />);
       expect(lastFrame()).toContain("WhisperTUI");
+    });
+  });
+
+  describe("history view", () => {
+    const mockHistory: HistoryEntry[] = [
+      {
+        id: "2026-01-17_12-00-00-000-000",
+        timestamp: new Date().toISOString(),
+        text: "First transcription",
+        path: "/fake/1.txt",
+      },
+      {
+        id: "2026-01-17_12-01-00-000-000",
+        timestamp: new Date().toISOString(),
+        text: "Second transcription",
+        path: "/fake/2.txt",
+      },
+    ];
+
+    test("h key switches to history view", async () => {
+      const { lastFrame, stdin } = render(
+        <App skipDaemon initialState="idle" mockHistory={mockHistory} />
+      );
+
+      await waitForUpdate();
+
+      // Should be in main view
+      expect(lastFrame()).toContain("Voice Transcription");
+
+      // Press h to switch to history
+      stdin.write("h");
+      await waitForUpdate();
+
+      // Should now show history
+      expect(lastFrame()).toContain("History");
+      expect(lastFrame()).toContain("2 entries");
+    });
+
+    test("shows history keyboard shortcut in main view", () => {
+      const { lastFrame } = render(<App skipDaemon initialState="idle" />);
+      expect(lastFrame()).toContain("View history");
+    });
+
+    test("history view displays entries", async () => {
+      const { lastFrame } = render(
+        <App skipDaemon initialState="idle" initialView="history" mockHistory={mockHistory} />
+      );
+
+      await waitForUpdate();
+
+      expect(lastFrame()).toContain("First transcription");
+      expect(lastFrame()).toContain("Second transcription");
+    });
+
+    test("q in history view returns to main view", async () => {
+      const { lastFrame, stdin } = render(
+        <App skipDaemon initialState="idle" initialView="history" mockHistory={mockHistory} />
+      );
+
+      await waitForUpdate();
+
+      // Should be in history view
+      expect(lastFrame()).toContain("History");
+
+      // Press q to go back
+      stdin.write("q");
+      await waitForUpdate();
+
+      // Should be back in main view
+      expect(lastFrame()).toContain("Voice Transcription");
+    });
+
+    test("Enter in history view shows copy message", async () => {
+      const { lastFrame, stdin } = render(
+        <App skipDaemon initialState="idle" initialView="history" mockHistory={mockHistory} />
+      );
+
+      await waitForUpdate();
+
+      // Press Enter to select/copy
+      stdin.write("\r");
+      await waitForUpdate();
+
+      // Should show copied message
+      expect(lastFrame()).toContain("Copied to clipboard");
+    });
+
+    test("empty history shows no transcriptions message", async () => {
+      const { lastFrame } = render(
+        <App skipDaemon initialState="idle" initialView="history" mockHistory={[]} />
+      );
+
+      await waitForUpdate();
+
+      expect(lastFrame()).toContain("No transcriptions yet");
     });
   });
 });

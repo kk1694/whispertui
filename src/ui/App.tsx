@@ -12,22 +12,31 @@ import {
   RecordingIndicator,
   type RecordingState,
 } from "./components/RecordingIndicator.tsx";
+import { History } from "./components/History.tsx";
 import {
   sendCommand,
-  isDaemonRunning,
   DaemonNotRunningError,
   ConnectionTimeoutError,
 } from "../client/index.ts";
 import type { DaemonResponse } from "../daemon/server.ts";
+import { listHistory, type HistoryEntry } from "../history/index.ts";
+import { copyToClipboard } from "../output/clipboard.ts";
 
 /** Polling interval for status updates in milliseconds */
 const STATUS_POLL_INTERVAL = 500;
+
+/** View modes for the TUI */
+export type ViewMode = "main" | "history";
 
 export interface AppProps {
   /** Initial daemon state (optional, will poll if not provided) */
   initialState?: RecordingState;
   /** Skip daemon connection (for testing) */
   skipDaemon?: boolean;
+  /** Initial view mode (for testing) */
+  initialView?: ViewMode;
+  /** Mock history entries (for testing) */
+  mockHistory?: HistoryEntry[];
 }
 
 interface WindowContext {
@@ -47,6 +56,8 @@ interface StateContext {
 export function App({
   initialState,
   skipDaemon = false,
+  initialView = "main",
+  mockHistory,
 }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const [state, setState] = useState<RecordingState>(initialState ?? "idle");
@@ -55,6 +66,49 @@ export function App({
   const [isConnected, setIsConnected] = useState(false);
   const [lastTranscription, setLastTranscription] = useState<string | null>(
     null
+  );
+  const [viewMode, setViewMode] = useState<ViewMode>(initialView);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>(
+    mockHistory ?? []
+  );
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+
+  // Load history entries
+  const loadHistory = useCallback(() => {
+    if (mockHistory) {
+      setHistoryEntries(mockHistory);
+      return;
+    }
+    try {
+      const entries = listHistory({ limit: 100 });
+      setHistoryEntries(entries);
+    } catch {
+      // Silently fail - history view will show empty state
+      setHistoryEntries([]);
+    }
+  }, [mockHistory]);
+
+  // Handle history entry selection (copy to clipboard)
+  const handleHistorySelect = useCallback(
+    async (entry: HistoryEntry) => {
+      if (skipDaemon) {
+        // For testing - just show the message
+        setCopyMessage("Copied to clipboard!");
+        setTimeout(() => setCopyMessage(null), 2000);
+        return;
+      }
+
+      try {
+        await copyToClipboard(entry.text);
+        setCopyMessage("Copied to clipboard!");
+        setTimeout(() => setCopyMessage(null), 2000);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        }
+      }
+    },
+    [skipDaemon]
   );
 
   // Handle daemon response
@@ -118,14 +172,24 @@ export function App({
     };
   }, [skipDaemon, handleResponse]);
 
-  // Handle keyboard input
+  // Handle keyboard input for main view
   useInput(
     (input, key) => {
-      // Quit on 'q' or Ctrl+C
-      if (input === "q" || (key.ctrl && input === "c")) {
+      // Quit on 'q' or Ctrl+C (only when not in history view)
+      if ((input === "q" || (key.ctrl && input === "c")) && viewMode === "main") {
         exit();
         return;
       }
+
+      // Switch to history view on 'h'
+      if (input === "h" && viewMode === "main") {
+        loadHistory();
+        setViewMode("history");
+        return;
+      }
+
+      // Only handle these inputs when in main view
+      if (viewMode !== "main") return;
 
       // Toggle recording on Enter
       if (key.return) {
@@ -145,7 +209,7 @@ export function App({
         return;
       }
     },
-    { isActive: isConnected }
+    { isActive: isConnected && viewMode === "main" }
   );
 
   const toggleRecording = async () => {
@@ -227,6 +291,35 @@ export function App({
     );
   }
 
+  // Render history view
+  if (viewMode === "history") {
+    return (
+      <Box flexDirection="column" padding={1}>
+        {/* Copy message notification */}
+        {copyMessage && (
+          <Box marginBottom={1}>
+            <Text color="green">{copyMessage}</Text>
+          </Box>
+        )}
+
+        {/* Error display */}
+        {error && (
+          <Box marginBottom={1}>
+            <Text color="red">Error: {error}</Text>
+          </Box>
+        )}
+
+        <History
+          entries={historyEntries}
+          isActive={true}
+          onSelect={handleHistorySelect}
+          onBack={() => setViewMode("main")}
+          maxVisible={10}
+        />
+      </Box>
+    );
+  }
+
   return (
     <Box flexDirection="column" padding={1}>
       {/* Header */}
@@ -247,6 +340,13 @@ export function App({
         <Box marginBottom={1}>
           <Text dimColor>Window: </Text>
           <Text>{context.currentWindow.windowClass}</Text>
+        </Box>
+      )}
+
+      {/* Copy message notification */}
+      {copyMessage && (
+        <Box marginBottom={1}>
+          <Text color="green">{copyMessage}</Text>
         </Box>
       )}
 
@@ -286,6 +386,10 @@ export function App({
           <Box>
             <Text color="yellow">Space</Text>
             <Text dimColor> - Stop recording</Text>
+          </Box>
+          <Box>
+            <Text color="yellow">h</Text>
+            <Text dimColor> - View history</Text>
           </Box>
           <Box>
             <Text color="yellow">q</Text>
