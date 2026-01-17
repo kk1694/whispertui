@@ -15,7 +15,7 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
   echo "=========================================="
   echo ""
 
-  cat PROMPT.md | claude
+  cat PROMPT.md | claude --allow-dangerously-skip-permissions 
 
   # Check exit status
   if [ $? -ne 0 ]; then
