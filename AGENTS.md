@@ -5,3 +5,4 @@ When I ask you to write out your plans, write them in the plans/ directory in ma
 ## Documentation
 
 - [Product Specification](docs/product-spec.md) - Full product requirements and vision
+- [Technical Specification](docs/tech-spec.md) - Implementation details and architecture
