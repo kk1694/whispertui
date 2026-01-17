@@ -20,6 +20,7 @@ import {
   listHistory,
   type HistoryEntry,
 } from "./history/index.ts";
+import { launchTui } from "./ui/index.tsx";
 
 const VERSION = "0.1.0";
 
@@ -324,7 +325,7 @@ async function main(): Promise<void> {
       break;
     }
     case "tui":
-      console.log("tui: not implemented yet");
+      await launchTui();
       break;
     case "doctor":
       console.log("doctor: not implemented yet");

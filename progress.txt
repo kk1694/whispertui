@@ -202,20 +202,47 @@ Each Claude instance should read this at the start and append notes at the end.
 - Default code-aware apps: Alacritty, kitty, foot, nvim, code, Code
 - 21 new tests covering hyprctl wrapper, isCodeAwareApp, ContextDetector class
 
+### 2026-01-17: Step 10 - TUI Foundation (Ink Setup)
+
+- Added `ink` (v6.6.0) and `react` (v19.2.3) as dependencies
+- Added `@types/react` and `ink-testing-library` as dev dependencies
+- Created `src/ui/components/RecordingIndicator.tsx`:
+  - Displays state label with color-coded icon (idle=gray/○, recording=red/●, transcribing=yellow/◐)
+  - Blinking effect for recording state (500ms interval)
+  - Spinner animation for transcribing state (150ms interval, rotates ◐◓◑◒)
+- Created `src/ui/App.tsx`:
+  - Main TUI application component using Ink
+  - Polls daemon status every 500ms to stay in sync
+  - Handles keyboard input: Enter (toggle), s (start when idle), Space (stop), q (quit)
+  - Shows current window context if available
+  - Displays last transcription preview (truncated to 60 chars)
+  - Shows error messages when they occur
+  - Disconnected state shows waiting message when daemon not available
+- Created `src/ui/index.tsx`:
+  - Entry point that ensures daemon is running before launching TUI
+  - Exports `launchTui()` function for CLI integration
+- Wired `tui` command in `src/index.ts` to call `launchTui()`
+- Testing approach:
+  - Used `ink-testing-library` for component testing
+  - `skipDaemon` prop allows testing without actual daemon connection
+  - Tests verify rendering, state display, and keyboard shortcuts
+  - 20 new tests across RecordingIndicator and App components
+- tsconfig.json already had `jsx: "react-jsx"` configured
+
 ---
 
 ## Current State
 
-- Project status: Step 9 complete
-- Last completed task: Step 9 - Context Detection
+- Project status: Step 10 complete
+- Last completed task: Step 10 - TUI Foundation (Ink Setup)
 - Current blockers: None
 
 ---
 
 ## Notes for Next Iteration
 
-- Next task: Step 10 - TUI Foundation (Ink Setup)
-- Need to set up Ink with React/TypeScript
-- Create main App component and RecordingIndicator component
-- Wire TUI to daemon via socket client
-- Add keyboard shortcuts (Enter to toggle, q to quit)
+- Next task: Step 11 - TUI History Browser
+- Need to create History component (scrollable list)
+- Implement selection and copy-to-clipboard
+- Add search/filter functionality
+- Integrate with main TUI app

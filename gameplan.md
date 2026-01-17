@@ -417,16 +417,16 @@ Mark tasks complete by changing [ ] to [x].
 - `src/index.ts` (add tui command)
 
 **Tests**:
-- [ ] TUI launches and connects to daemon
-- [ ] Recording indicator updates with state changes
-- [ ] Keyboard shortcuts work
-- [ ] Clean exit on quit
+- [x] TUI launches and connects to daemon
+- [x] Recording indicator updates with state changes
+- [x] Keyboard shortcuts work
+- [x] Clean exit on quit
 
 **Acceptance Criteria**:
-- [ ] `whispertui tui` launches interactive interface
-- [ ] Shows current recording state (idle/recording/transcribing)
-- [ ] Press Enter toggles recording
-- [ ] Press q quits cleanly
+- [x] `whispertui tui` launches interactive interface
+- [x] Shows current recording state (idle/recording/transcribing)
+- [x] Press Enter toggles recording
+- [x] Press q quits cleanly
 
 ---
 

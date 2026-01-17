@@ -14,13 +14,17 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/react": "^19.2.8",
+    "ink-testing-library": "^4.0.0"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
+    "ink": "^6.6.0",
+    "react": "^19.2.3",
     "zod": "^4.3.5"
   }
 }
