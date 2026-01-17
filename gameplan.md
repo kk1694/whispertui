@@ -58,16 +58,16 @@ Mark tasks complete by changing [ ] to [x].
 - `config.example.toml`
 
 **Tests**:
-- [ ] Config loads from TOML file correctly
-- [ ] Missing config file uses defaults
-- [ ] Partial config merges with defaults
-- [ ] Invalid config values throw descriptive errors
-- [ ] Unknown keys are ignored (forward compatibility)
+- [x] Config loads from TOML file correctly
+- [x] Missing config file uses defaults
+- [x] Partial config merges with defaults
+- [x] Invalid config values throw descriptive errors
+- [x] Unknown keys are ignored (forward compatibility)
 
 **Acceptance Criteria**:
-- [ ] `bun run src/index.ts config` prints merged config (defaults + file)
-- [ ] Config validation rejects invalid values with clear messages
-- [ ] `config.example.toml` documents all options
+- [x] `bun run src/index.ts config` prints merged config (defaults + file)
+- [x] Config validation rejects invalid values with clear messages
+- [x] `config.example.toml` documents all options
 
 ---
 

@@ -1,0 +1,43 @@
+# WhisperTUI Configuration
+# Copy this file to ~/.config/whispertui/config.toml
+# All values shown are defaults - you can omit any section or key to use defaults
+
+[transcription]
+# Transcription backend (currently only "groq" is supported)
+backend = "groq"
+# Environment variable containing the API key
+api_key_env = "GROQ_API_KEY"
+
+[audio]
+# PulseAudio device name ("default" uses the system default)
+device = "default"
+# Sample rate in Hz (Whisper expects 16kHz)
+sample_rate = 16000
+# Audio format (only "wav" is supported)
+format = "wav"
+
+[output]
+# Automatically paste transcribed text
+auto_paste = true
+# Paste method: "wtype" (types into focused window) or "clipboard-only"
+paste_method = "wtype"
+
+[context]
+# Enable context detection (detects code-aware apps)
+enabled = true
+# Window classes considered "code-aware" (affects transcription mode in v2)
+code_aware_apps = ["Alacritty", "kitty", "foot", "nvim", "code", "Code"]
+
+[history]
+# Enable transcription history
+enabled = true
+# Maximum number of history entries to keep
+max_entries = 1000
+
+[daemon]
+# Idle timeout in seconds (0 = never auto-shutdown)
+idle_timeout = 0
+
+[notifications]
+# Enable desktop notifications
+enabled = true

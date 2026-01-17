@@ -5,6 +5,7 @@
  */
 
 import { ensureAllDirs, paths } from "./config/paths.ts";
+import { loadConfig, formatConfigError } from "./config/loader.ts";
 
 const VERSION = "0.1.0";
 
@@ -73,14 +74,49 @@ async function main(): Promise<void> {
       console.log("daemon: not implemented yet");
       break;
     case "config":
-      // Print XDG paths for now (will show actual config later)
-      console.log("WhisperTUI Configuration Paths:");
-      console.log(`  Config:  ${paths.config()}`);
-      console.log(`  State:   ${paths.state()}`);
-      console.log(`  Data:    ${paths.data()}`);
-      console.log(`  Cache:   ${paths.cache()}`);
-      console.log(`  Socket:  ${paths.socket()}`);
-      console.log(`  History: ${paths.history()}`);
+      try {
+        const config = await loadConfig();
+        console.log("WhisperTUI Configuration:");
+        console.log();
+        console.log("[transcription]");
+        console.log(`  backend = "${config.transcription.backend}"`);
+        console.log(`  api_key_env = "${config.transcription.api_key_env}"`);
+        console.log();
+        console.log("[audio]");
+        console.log(`  device = "${config.audio.device}"`);
+        console.log(`  sample_rate = ${config.audio.sample_rate}`);
+        console.log(`  format = "${config.audio.format}"`);
+        console.log();
+        console.log("[output]");
+        console.log(`  auto_paste = ${config.output.auto_paste}`);
+        console.log(`  paste_method = "${config.output.paste_method}"`);
+        console.log();
+        console.log("[context]");
+        console.log(`  enabled = ${config.context.enabled}`);
+        console.log(
+          `  code_aware_apps = ${JSON.stringify(config.context.code_aware_apps)}`
+        );
+        console.log();
+        console.log("[history]");
+        console.log(`  enabled = ${config.history.enabled}`);
+        console.log(`  max_entries = ${config.history.max_entries}`);
+        console.log();
+        console.log("[daemon]");
+        console.log(`  idle_timeout = ${config.daemon.idle_timeout}`);
+        console.log();
+        console.log("[notifications]");
+        console.log(`  enabled = ${config.notifications.enabled}`);
+        console.log();
+        console.log("Paths:");
+        console.log(`  Config file: ${paths.configFile()}`);
+        console.log(`  Config dir:  ${paths.config()}`);
+        console.log(`  State dir:   ${paths.state()}`);
+        console.log(`  Data dir:    ${paths.data()}`);
+        console.log(`  Cache dir:   ${paths.cache()}`);
+      } catch (error) {
+        console.error(formatConfigError(error));
+        process.exit(1);
+      }
       break;
     case "history":
       console.log("history: not implemented yet");

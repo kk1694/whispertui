@@ -18,5 +18,9 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "zod": "^4.3.5"
   }
 }
