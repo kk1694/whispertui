@@ -50,6 +50,8 @@ export interface ClientOptions {
   timeout?: number;
   /** Socket path override (for testing) */
   socketPath?: string;
+  /** Skip notifications for this recording session (used by quick mode) */
+  silent?: boolean;
 }
 
 /**
@@ -113,8 +115,11 @@ export async function sendCommand(
 
     socket.on("connect", () => {
       // Send the command as JSON with newline delimiter
-      const request = JSON.stringify({ command }) + "\n";
-      socket!.write(request);
+      const request: Record<string, unknown> = { command };
+      if (options.silent) {
+        request.silent = true;
+      }
+      socket!.write(JSON.stringify(request) + "\n");
     });
 
     socket.on("data", (data: Buffer | string) => {

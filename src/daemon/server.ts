@@ -71,6 +71,8 @@ export type DaemonCommand = "start" | "stop" | "status" | "shutdown" | "ping";
 /** Request format from client */
 export interface DaemonRequest {
   command: DaemonCommand;
+  /** Skip notifications for this recording session (used by quick mode) */
+  silent?: boolean;
 }
 
 /** Response format to client */
@@ -247,6 +249,8 @@ export class DaemonServer {
   private historyManager: HistoryManager;
   private contextDetector: ContextDetector;
   private currentAudioPath: string | null = null;
+  /** Silent mode - skip notifications for this recording session */
+  private silentMode = false;
 
   constructor(options?: DaemonServerOptions) {
     this.stateMachine = options?.stateMachine ?? createStateMachine();
@@ -319,7 +323,7 @@ export class DaemonServer {
       }
 
       case "start":
-        return this.handleStart();
+        return this.handleStart(request);
 
       case "stop":
         return this.handleStop();
@@ -349,7 +353,7 @@ export class DaemonServer {
   /**
    * Handle start command - begin recording
    */
-  private handleStart(): DaemonResponse {
+  private handleStart(request: DaemonRequest): DaemonResponse {
     try {
       // Validate state transition first
       this.stateMachine.send({ type: "start" });
@@ -364,6 +368,9 @@ export class DaemonServer {
       throw error;
     }
 
+    // Set silent mode for this recording session
+    this.silentMode = request.silent ?? false;
+
     // Detect context in background (don't block recording start)
     this.contextDetector.detectContext()
       .then((context) => {
@@ -374,8 +381,10 @@ export class DaemonServer {
         // Context is best-effort and shouldn't affect recording
       });
 
-    // Send recording started notification
-    this.notifier.notifyRecordingStarted();
+    // Send recording started notification (unless in silent mode)
+    if (!this.silentMode) {
+      this.notifier.notifyRecordingStarted();
+    }
 
     // Start recording in background
     this.recorder.start()
@@ -393,7 +402,9 @@ export class DaemonServer {
           message = error.message;
         }
         this.stateMachine.send({ type: "error", message });
-        this.notifier.notifyError(message);
+        if (!this.silentMode) {
+          this.notifier.notifyError(message);
+        }
         this.currentAudioPath = null;
       });
 
@@ -443,8 +454,12 @@ export class DaemonServer {
 
           this.stateMachine.send({ type: "transcription_complete", text });
 
-          // Send transcription complete notification
-          this.notifier.notifyTranscriptionComplete(text);
+          // Send transcription complete notification (unless in silent mode)
+          if (!this.silentMode) {
+            this.notifier.notifyTranscriptionComplete(text);
+          }
+          // Reset silent mode after recording session ends
+          this.silentMode = false;
         } catch (error) {
           // Transcription failed
           let message = "Transcription failed";
@@ -458,7 +473,11 @@ export class DaemonServer {
             message = error.message;
           }
           this.stateMachine.send({ type: "error", message });
-          this.notifier.notifyError(message);
+          if (!this.silentMode) {
+            this.notifier.notifyError(message);
+          }
+          // Reset silent mode after recording session ends
+          this.silentMode = false;
         }
       })
       .catch((error) => {
@@ -470,8 +489,12 @@ export class DaemonServer {
           message = error.message;
         }
         this.stateMachine.send({ type: "error", message });
-        this.notifier.notifyError(message);
+        if (!this.silentMode) {
+          this.notifier.notifyError(message);
+        }
         this.currentAudioPath = null;
+        // Reset silent mode after recording session ends
+        this.silentMode = false;
       });
 
     const snapshot = this.stateMachine.getSnapshot();
@@ -502,12 +525,15 @@ export class DaemonServer {
       } else if (clipboardError instanceof ClipboardError) {
         clipboardMessage = clipboardError.message;
       }
-      this.notifier.notifyError(clipboardMessage);
+      if (!this.silentMode) {
+        this.notifier.notifyError(clipboardMessage);
+      }
       console.error(clipboardMessage);
     }
 
     // If auto_paste is enabled and paste_method is wtype, try to type the text
-    if (this.outputConfig.autoPaste && this.outputConfig.pasteMethod === "wtype") {
+    // Skip auto-type in silent mode (quick mode handles typing after terminal closes)
+    if (this.outputConfig.autoPaste && this.outputConfig.pasteMethod === "wtype" && !this.silentMode) {
       try {
         await typeText(text);
       } catch (typeError) {

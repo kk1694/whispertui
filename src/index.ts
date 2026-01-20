@@ -19,10 +19,6 @@ import {
   ensureDaemonRunning,
 } from "./client/index.ts";
 import type { DaemonCommand } from "./daemon/server.ts";
-import {
-  listHistory,
-  type HistoryEntry,
-} from "./history/index.ts";
 import { launchTui, launchQuickTranscribe } from "./ui/index.tsx";
 import { runDoctorChecks, formatDoctorResult } from "./doctor/index.ts";
 
@@ -420,50 +416,9 @@ async function main(): Promise<void> {
       }
       break;
     }
-    case "history": {
-      // Parse --limit flag
-      let limit: number | undefined;
-      const limitIdx = args.indexOf("--limit");
-      const limitArg = limitIdx !== -1 ? args[limitIdx + 1] : undefined;
-      if (limitArg) {
-        const parsed = parseInt(limitArg, 10);
-        if (!isNaN(parsed) && parsed > 0) {
-          limit = parsed;
-        }
-      }
-      // Also check short form -n
-      const nIdx = args.indexOf("-n");
-      const nArg = nIdx !== -1 ? args[nIdx + 1] : undefined;
-      if (nArg) {
-        const parsed = parseInt(nArg, 10);
-        if (!isNaN(parsed) && parsed > 0) {
-          limit = parsed;
-        }
-      }
-
-      const entries = listHistory({ limit });
-
-      if (entries.length === 0) {
-        console.log("No transcription history found.");
-      } else {
-        console.log("Recent transcriptions:");
-        console.log();
-        for (const entry of entries) {
-          const date = new Date(entry.timestamp);
-          const dateStr = date.toLocaleString();
-          // Truncate text for display
-          const preview =
-            entry.text.length > 80
-              ? entry.text.substring(0, 80).replace(/\n/g, " ") + "..."
-              : entry.text.replace(/\n/g, " ");
-          console.log(`[${dateStr}]`);
-          console.log(`  ${preview}`);
-          console.log();
-        }
-        console.log(`Total: ${entries.length} entries`);
-      }
+    case "history":
+      await launchTui({ initialView: "history" });
       break;
-    }
     case "tui":
       await launchTui();
       break;

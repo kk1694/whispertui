@@ -1,6 +1,7 @@
 # WhisperTUI
 
-Terminal-based voice transcription tool for Linux/Wayland using Groq's Whisper API.
+Terminal-based voice transcription tool for Linux/Wayland using Groq's Whisper
+API. Note: completely vibe coded!
 
 ## Features
 
@@ -14,14 +15,18 @@ Terminal-based voice transcription tool for Linux/Wayland using Groq's Whisper A
 ## Requirements
 
 ### Required
+
 - [Bun](https://bun.sh/) runtime
 - PulseAudio (`parecord` for recording)
-- [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy` for clipboard)
+- [wl-clipboard](https://github.com/bugaevc/wl-clipboard) (`wl-copy` for
+  clipboard)
 - Groq API key (get one at https://console.groq.com)
 
 ### Optional
+
 - [wtype](https://github.com/atx/wtype) - for auto-typing into focused window
-- [libnotify](https://gitlab.gnome.org/GNOME/libnotify) - for desktop notifications
+- [libnotify](https://gitlab.gnome.org/GNOME/libnotify) - for desktop
+  notifications
 - [Hyprland](https://hyprland.org/) - for context detection
 
 ## Installation
@@ -61,39 +66,39 @@ whispertui tui
 
 ### Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `start` | Start recording |
-| `stop` | Stop recording and transcribe |
-| `toggle` | Toggle recording state |
-| `status` | Show daemon status |
-| `shutdown` | Stop the daemon |
-| `daemon` | Start daemon in foreground |
-| `config` | Print current configuration |
-| `config --edit` | Open config file in $EDITOR |
-| `history` | List recent transcriptions |
-| `tui` | Launch interactive TUI |
-| `doctor` | Check system dependencies |
+| Command         | Description                   |
+| --------------- | ----------------------------- |
+| `start`         | Start recording               |
+| `stop`          | Stop recording and transcribe |
+| `toggle`        | Toggle recording state        |
+| `status`        | Show daemon status            |
+| `shutdown`      | Stop the daemon               |
+| `daemon`        | Start daemon in foreground    |
+| `config`        | Print current configuration   |
+| `config --edit` | Open config file in $EDITOR   |
+| `history`       | List recent transcriptions    |
+| `tui`           | Launch interactive TUI        |
+| `doctor`        | Check system dependencies     |
 
 ### TUI Keybindings
 
-| Key | Action |
-|-----|--------|
-| `Enter` | Toggle recording |
-| `s` | Start recording (when idle) |
-| `Space` | Stop recording |
-| `h` | Open history browser |
-| `q` | Quit |
+| Key     | Action                      |
+| ------- | --------------------------- |
+| `Enter` | Toggle recording            |
+| `s`     | Start recording (when idle) |
+| `Space` | Stop recording              |
+| `h`     | Open history browser        |
+| `q`     | Quit                        |
 
 #### History Browser
 
-| Key | Action |
-|-----|--------|
-| `↑/↓` or `j/k` | Navigate entries |
-| `Enter` | Copy selected to clipboard |
-| `/` or `f` | Start filtering |
-| `c` | Clear filter |
-| `q` or `Esc` | Return to main view |
+| Key            | Action                     |
+| -------------- | -------------------------- |
+| `↑/↓` or `j/k` | Navigate entries           |
+| `Enter`        | Copy selected to clipboard |
+| `/` or `f`     | Start filtering            |
+| `c`            | Clear filter               |
+| `q` or `Esc`   | Return to main view        |
 
 ## Hyprland Integration
 
@@ -184,12 +189,12 @@ enabled = true
 
 Following XDG Base Directory specification:
 
-| Path | Purpose |
-|------|---------|
-| `~/.config/whispertui/` | Configuration files |
-| `~/.local/state/whispertui/` | Socket and PID files |
+| Path                                 | Purpose               |
+| ------------------------------------ | --------------------- |
+| `~/.config/whispertui/`              | Configuration files   |
+| `~/.local/state/whispertui/`         | Socket and PID files  |
 | `~/.local/share/whispertui/history/` | Transcription history |
-| `~/.cache/whispertui/` | Temporary audio files |
+| `~/.cache/whispertui/`               | Temporary audio files |
 
 ## Troubleshooting
 
@@ -202,18 +207,23 @@ whispertui doctor
 ### Common Issues
 
 **"Daemon not running" error**
-- The daemon starts automatically, but you can start it manually: `whispertui daemon`
+
+- The daemon starts automatically, but you can start it manually:
+  `whispertui daemon`
 
 **No audio recorded**
+
 - Check PulseAudio is running: `pactl info`
 - Verify microphone: `parecord --list-devices`
 
 **wtype not working**
+
 - wtype requires running under Wayland
 - Make sure your compositor supports virtual keyboard protocol
 - Fall back to clipboard-only: set `paste_method = "clipboard-only"` in config
 
 **Missing API key**
+
 - Create `.env` file in project root with `GROQ_API_KEY=your_key`
 - Or export it: `export GROQ_API_KEY=your_key`
 

@@ -79,7 +79,7 @@ export function QuickApp({
 
     const startRecording = async () => {
       try {
-        const response = await sendCommand("start", { timeout: 2000 });
+        const response = await sendCommand("start", { timeout: 2000, silent: true });
         setIsConnected(true);
         handleResponse(response);
       } catch (err) {

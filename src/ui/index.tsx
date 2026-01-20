@@ -12,13 +12,15 @@ import { isDaemonRunning, isDaemonStarting, spawnDaemon } from "../client/index.
 export interface TuiOptions {
   /** Skip daemon auto-start (for testing) */
   skipDaemon?: boolean;
+  /** Initial view mode */
+  initialView?: "main" | "history";
 }
 
 /**
  * Launch the TUI application
  */
 export async function launchTui(options: TuiOptions = {}): Promise<void> {
-  const { skipDaemon = false } = options;
+  const { skipDaemon = false, initialView } = options;
 
   // Try to auto-start daemon in background (non-blocking)
   if (!skipDaemon) {
@@ -34,7 +36,7 @@ export async function launchTui(options: TuiOptions = {}): Promise<void> {
   }
 
   // Render TUI immediately
-  const { waitUntilExit } = render(<App skipDaemon={skipDaemon} />);
+  const { waitUntilExit } = render(<App skipDaemon={skipDaemon} initialView={initialView} />);
   await waitUntilExit();
 }
 
