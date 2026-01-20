@@ -449,8 +449,8 @@ export class DaemonServer {
           // Save to history FIRST to get the file path
           const historyEntry = this.historyManager.save(text);
 
-          // Output handling - pass history file path for wtype
-          await this.handleOutput(text, historyEntry?.path);
+          // Output handling
+          await this.handleOutput(text);
 
           this.stateMachine.send({ type: "transcription_complete", text });
 
@@ -512,9 +512,8 @@ export class DaemonServer {
    * Uses wtype for auto_paste with paste_method=wtype, otherwise clipboard-only.
    * Falls back to clipboard if wtype fails.
    * @param text The transcribed text
-   * @param sourceFile Optional pre-existing file to pipe to wtype (avoids temp file creation)
    */
-  private async handleOutput(text: string, sourceFile?: string): Promise<void> {
+  private async handleOutput(text: string): Promise<void> {
     // Always copy to clipboard first (as fallback/primary depending on config)
     let clipboardSuccess = false;
     try {
@@ -537,7 +536,7 @@ export class DaemonServer {
     // Skip auto-type in silent mode (quick mode handles typing after terminal closes)
     if (this.outputConfig.autoPaste && this.outputConfig.pasteMethod === "wtype" && !this.silentMode) {
       try {
-        await typeText(text, { sourceFile });
+        await typeText(text);
       } catch (typeError) {
         // wtype failed - text is already in clipboard as fallback
         let typeMessage = "Failed to type text";
