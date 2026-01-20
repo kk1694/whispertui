@@ -51,6 +51,7 @@ export function QuickApp({
   const [state, setState] = useState<RecordingState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [transcribedText, setTranscribedText] = useState<string | null>(null);
   const hasStartedRef = useRef(false);
   const isExitingRef = useRef(false);
 
@@ -130,14 +131,14 @@ export function QuickApp({
     return { success: false, error: "Transcription timed out" };
   }, []);
 
-  // Handle Enter - stop and transcribe
+  // Handle Enter - stop and transcribe (first Enter press)
   const handleTranscribe = useCallback(async () => {
     if (isExitingRef.current) return;
     isExitingRef.current = true;
 
     if (skipDaemon) {
-      onExit({ success: true, text: "Test transcription" });
-      exit();
+      setTranscribedText("Test transcription");
+      isExitingRef.current = false;
       return;
     }
 
@@ -147,24 +148,36 @@ export function QuickApp({
       handleResponse(response);
 
       if (!response.success) {
-        onExit({ success: false, error: response.error });
-        exit();
+        setError(response.error ?? "Failed to stop recording");
+        isExitingRef.current = false;
         return;
       }
 
       // Poll for the result
       const result = await pollForResult();
-      onExit(result);
-      exit();
+      if (result.success && result.text) {
+        setTranscribedText(result.text);
+      } else {
+        setError(result.error ?? "No transcription result");
+      }
+      isExitingRef.current = false;
     } catch (err) {
       if (err instanceof Error) {
-        onExit({ success: false, error: err.message });
+        setError(err.message);
       } else {
-        onExit({ success: false, error: "Unknown error" });
+        setError("Unknown error");
       }
+      isExitingRef.current = false;
+    }
+  }, [skipDaemon, handleResponse, pollForResult]);
+
+  // Handle Enter - confirm and exit (second Enter press)
+  const handleConfirm = useCallback(() => {
+    if (transcribedText) {
+      onExit({ success: true, text: transcribedText });
       exit();
     }
-  }, [skipDaemon, handleResponse, pollForResult, onExit, exit]);
+  }, [transcribedText, onExit, exit]);
 
   // Handle Escape - cancel
   const handleCancel = useCallback(async () => {
@@ -192,8 +205,12 @@ export function QuickApp({
         return;
       }
 
-      if (key.return && state === "recording") {
-        handleTranscribe();
+      if (key.return) {
+        if (state === "recording") {
+          handleTranscribe();
+        } else if (transcribedText) {
+          handleConfirm();
+        }
         return;
       }
     },
@@ -211,6 +228,27 @@ export function QuickApp({
           <Text dimColor>Press </Text>
           <Text color="yellow">Esc</Text>
           <Text dimColor> to exit</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Render transcription preview
+  if (transcribedText) {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Box marginBottom={1}>
+          <Text>{transcribedText}</Text>
+        </Box>
+        <Box flexDirection="row" gap={2}>
+          <Box>
+            <Text color="green">Enter</Text>
+            <Text dimColor> confirm</Text>
+          </Box>
+          <Box>
+            <Text color="yellow">Esc</Text>
+            <Text dimColor> cancel</Text>
+          </Box>
         </Box>
       </Box>
     );
