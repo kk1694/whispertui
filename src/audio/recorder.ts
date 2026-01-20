@@ -269,15 +269,19 @@ export class AudioRecorder {
         resolve(audioPath);
       });
 
-      // Send SIGTERM for graceful shutdown (allows parecord to finalize the file)
-      proc.kill("SIGTERM");
-
-      // Fallback: force kill after timeout if process doesn't exit
+      // Allow in-flight audio in PulseAudio buffers to drain to parecord
+      // This prevents truncation when user stops recording quickly
       setTimeout(() => {
-        if (this.process === proc) {
-          proc.kill("SIGKILL");
-        }
-      }, 2000);
+        // Send SIGTERM for graceful shutdown
+        proc.kill("SIGTERM");
+
+        // Fallback: force kill after timeout if process doesn't exit
+        setTimeout(() => {
+          if (this.process === proc) {
+            proc.kill("SIGKILL");
+          }
+        }, 2000);
+      }, 200);
     });
   }
 

@@ -10,6 +10,7 @@
   },
   "scripts": {
     "start": "bun run src/index.ts",
+    "history": "bun run src/index history",
     "build": "cp -r stubs/react-devtools-core node_modules/ && bun build --compile --minify src/index.ts --outfile dist/whispertui",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

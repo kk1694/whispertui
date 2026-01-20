@@ -88,6 +88,13 @@ export function App({
     }
   }, [mockHistory]);
 
+  // Load history on mount if starting in history view
+  useEffect(() => {
+    if (initialView === "history") {
+      loadHistory();
+    }
+  }, [initialView, loadHistory]);
+
   // Handle history entry selection (copy to clipboard)
   const handleHistorySelect = useCallback(
     async (entry: HistoryEntry) => {
