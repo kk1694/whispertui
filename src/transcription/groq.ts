@@ -183,6 +183,7 @@ export class GroqClient {
     formData.append("file", new Blob([audioData], { type: "audio/wav" }), filename);
     formData.append("model", WHISPER_MODEL);
     formData.append("response_format", "json");
+    formData.append("language", "en");
 
     // Make request with retries
     let lastError: Error | null = null;
