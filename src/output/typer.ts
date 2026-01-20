@@ -1,10 +1,10 @@
 /**
  * Auto-Type Output Module
  *
- * Types text into the focused window via wtype (Wayland).
- * Falls back to clipboard-only when wtype fails.
+ * Types text into the focused window via wtype (Wayland) or ydotool (uinput).
+ * Falls back to clipboard-only when typing fails.
  *
- * Note: Uses explicit -k space for spaces to work around issues
+ * Note: wtype uses explicit -k space for spaces to work around issues
  * where spaces are dropped in non-terminal daemon environments.
  */
 
@@ -23,7 +23,23 @@ export class WtypeNotFoundError extends Error {
   }
 }
 
-/** Error when wtype operation fails */
+/** Error when ydotool binary is not found */
+export class YdotoolNotFoundError extends Error {
+  constructor() {
+    super(
+      "ydotool not found. Please install ydotool:\n" +
+        "  Arch Linux: pacman -S ydotool\n" +
+        "  Ubuntu/Debian: apt install ydotool\n" +
+        "  Fedora: dnf install ydotool\n" +
+        "\n" +
+        "Note: ydotool requires the daemon to be running:\n" +
+        "  systemctl --user enable --now ydotool"
+    );
+    this.name = "YdotoolNotFoundError";
+  }
+}
+
+/** Error when typing operation fails */
 export class TyperError extends Error {
   constructor(message: string) {
     super(message);
@@ -35,6 +51,8 @@ export class TyperError extends Error {
 export interface TypeOptions {
   /** Delay between keystrokes in milliseconds (default: 12) */
   delay?: number;
+  /** Typing method: "wtype", "ydotool" (default: "ydotool") */
+  method?: "wtype" | "ydotool";
 }
 
 /**
@@ -64,23 +82,9 @@ function buildWtypeArgs(text: string, delay: number): string[] {
 }
 
 /**
- * Type text into focused window using wtype
- *
- * Uses explicit -k space for spaces to work around space dropping issues
- * when daemon runs from non-terminal environments.
- *
- * @param text - Text to type
- * @param options - Typing options
- * @throws {WtypeNotFoundError} If wtype is not installed
- * @throws {TyperError} If typing operation fails
+ * Type text using wtype (Wayland compositor)
  */
-export async function typeText(text: string, options?: TypeOptions): Promise<void> {
-  // Handle empty text gracefully - nothing to type
-  if (!text) {
-    return;
-  }
-
-  const delay = options?.delay ?? 12;
+async function typeWithWtype(text: string, delay: number): Promise<void> {
   const args = buildWtypeArgs(text, delay);
 
   return new Promise((resolve, reject) => {
@@ -126,6 +130,80 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
 }
 
 /**
+ * Type text using ydotool (kernel uinput)
+ */
+async function typeWithYdotool(text: string, delay: number): Promise<void> {
+  // ydotool type --delay <ms> -- "text"
+  const args = ["type", "--delay", String(delay), "--", text];
+
+  return new Promise((resolve, reject) => {
+    let proc: ChildProcess;
+
+    try {
+      proc = spawn("ydotool", args, {
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code === "ENOENT") {
+        reject(new YdotoolNotFoundError());
+        return;
+      }
+      reject(new TyperError(`Failed to start ydotool: ${err.message}`));
+      return;
+    }
+
+    let stderrOutput = "";
+
+    proc.stderr?.on("data", (data: Buffer) => {
+      stderrOutput += data.toString();
+    });
+
+    proc.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        reject(new YdotoolNotFoundError());
+      } else {
+        reject(new TyperError(`ydotool operation failed: ${error.message}`));
+      }
+    });
+
+    proc.on("exit", (code, signal) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        const errorMsg = stderrOutput.trim() || `ydotool exited with code ${code}, signal ${signal}`;
+        reject(new TyperError(errorMsg));
+      }
+    });
+  });
+}
+
+/**
+ * Type text into focused window using specified method
+ *
+ * @param text - Text to type
+ * @param options - Typing options (delay, method)
+ * @throws {WtypeNotFoundError} If wtype method selected but not installed
+ * @throws {YdotoolNotFoundError} If ydotool method selected but not installed
+ * @throws {TyperError} If typing operation fails
+ */
+export async function typeText(text: string, options?: TypeOptions): Promise<void> {
+  // Handle empty text gracefully - nothing to type
+  if (!text) {
+    return;
+  }
+
+  const delay = options?.delay ?? 12;
+  const method = options?.method ?? "ydotool";
+
+  if (method === "wtype") {
+    return typeWithWtype(text, delay);
+  } else {
+    return typeWithYdotool(text, delay);
+  }
+}
+
+/**
  * Check if wtype is available on the system
  */
 export async function checkWtypeAvailable(): Promise<boolean> {
@@ -143,6 +221,27 @@ export async function checkWtypeAvailable(): Promise<boolean> {
       // wtype --help returns non-zero but still indicates wtype exists
       // Just check that the process spawned successfully
       resolve(true);
+    });
+  });
+}
+
+/**
+ * Check if ydotool is available on the system
+ */
+export async function checkYdotoolAvailable(): Promise<boolean> {
+  return new Promise((resolve) => {
+    // ydotool doesn't have --version, so we check with 'help'
+    const proc = spawn("ydotool", ["help"], {
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+
+    proc.on("error", () => {
+      resolve(false);
+    });
+
+    proc.on("exit", (code) => {
+      // ydotool help returns 0 on success
+      resolve(code === 0);
     });
   });
 }

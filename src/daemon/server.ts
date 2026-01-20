@@ -43,6 +43,7 @@ import {
 import {
   typeText,
   WtypeNotFoundError,
+  YdotoolNotFoundError,
   TyperError,
 } from "../output/typer.ts";
 import {
@@ -93,7 +94,7 @@ export interface TranscriptionConfig {
 /** Output configuration extracted from Config */
 export interface OutputConfig {
   autoPaste: boolean;
-  pasteMethod: "wtype" | "clipboard-only";
+  pasteMethod: "wtype" | "ydotool" | "clipboard-only";
 }
 
 /** Options for creating a daemon server */
@@ -213,7 +214,7 @@ const DEFAULT_TRANSCRIPTION_CONFIG: TranscriptionConfig = {
 /** Default output config when none provided */
 const DEFAULT_OUTPUT_CONFIG: OutputConfig = {
   autoPaste: true,
-  pasteMethod: "wtype",
+  pasteMethod: "ydotool",
 };
 
 /** Default notification config when none provided */
@@ -532,15 +533,17 @@ export class DaemonServer {
       console.error(clipboardMessage);
     }
 
-    // If auto_paste is enabled and paste_method is wtype, try to type the text
+    // If auto_paste is enabled and paste_method is wtype or ydotool, try to type the text
     // Skip auto-type in silent mode (quick mode handles typing after terminal closes)
-    if (this.outputConfig.autoPaste && this.outputConfig.pasteMethod === "wtype" && !this.silentMode) {
+    if (this.outputConfig.autoPaste && this.outputConfig.pasteMethod !== "clipboard-only" && !this.silentMode) {
       try {
-        await typeText(text);
+        await typeText(text, { method: this.outputConfig.pasteMethod });
       } catch (typeError) {
-        // wtype failed - text is already in clipboard as fallback
+        // Typing failed - text is already in clipboard as fallback
         let typeMessage = "Failed to type text";
         if (typeError instanceof WtypeNotFoundError) {
+          typeMessage = typeError.message;
+        } else if (typeError instanceof YdotoolNotFoundError) {
           typeMessage = typeError.message;
         } else if (typeError instanceof TyperError) {
           typeMessage = typeError.message;

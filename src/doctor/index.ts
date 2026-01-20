@@ -256,6 +256,47 @@ export async function checkWtype(): Promise<DependencyCheck> {
 }
 
 /**
+ * Check if ydotool is available
+ */
+export async function checkYdotool(): Promise<DependencyCheck> {
+  // ydotool doesn't have --version, so we check with 'help'
+  const result = await runCommand("ydotool", ["help"]);
+
+  if (result.code === null) {
+    return {
+      name: "ydotool",
+      description: "Kernel-level keyboard automation (uinput)",
+      status: "missing",
+      installHint:
+        "Arch: pacman -S ydotool\n" +
+        "Ubuntu/Debian: apt install ydotool\n" +
+        "Fedora: dnf install ydotool\n" +
+        "\n" +
+        "Note: Enable the daemon with: systemctl --user enable --now ydotool",
+      required: false,
+    };
+  }
+
+  if (result.code === 0) {
+    return {
+      name: "ydotool",
+      description: "Kernel-level keyboard automation (uinput)",
+      status: "ok",
+      version: "(version not available)",
+      required: false,
+    };
+  }
+
+  return {
+    name: "ydotool",
+    description: "Kernel-level keyboard automation (uinput)",
+    status: "error",
+    errorMessage: result.stderr || `Exit code ${result.code}`,
+    required: false,
+  };
+}
+
+/**
  * Check if notify-send is available and get its version
  */
 export async function checkNotifySend(): Promise<DependencyCheck> {
@@ -367,17 +408,18 @@ export function checkGroqApiKey(): EnvVarCheck {
  */
 export async function runDoctorChecks(): Promise<DoctorResult> {
   // Run all dependency checks in parallel
-  const [bun, parecord, paplay, wlCopy, wtype, notifySend, hyprctl] = await Promise.all([
+  const [bun, parecord, paplay, wlCopy, wtype, ydotool, notifySend, hyprctl] = await Promise.all([
     checkBun(),
     checkParecord(),
     checkPaplay(),
     checkWlCopy(),
     checkWtype(),
+    checkYdotool(),
     checkNotifySend(),
     checkHyprctl(),
   ]);
 
-  const dependencies = [bun, parecord, paplay, wlCopy, wtype, notifySend, hyprctl];
+  const dependencies = [bun, parecord, paplay, wlCopy, wtype, ydotool, notifySend, hyprctl];
   const envVars = [checkGroqApiKey()];
 
   const allOk =

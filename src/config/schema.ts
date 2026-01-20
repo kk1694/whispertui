@@ -18,7 +18,7 @@ export const AudioConfigSchema = z.object({
 
 export const OutputConfigSchema = z.object({
   auto_paste: z.boolean().optional(),
-  paste_method: z.enum(["wtype", "clipboard-only"]).optional(),
+  paste_method: z.enum(["wtype", "ydotool", "clipboard-only"]).optional(),
 });
 
 export const ContextConfigSchema = z.object({
@@ -70,7 +70,7 @@ export interface Config {
   };
   output: {
     auto_paste: boolean;
-    paste_method: "wtype" | "clipboard-only";
+    paste_method: "wtype" | "ydotool" | "clipboard-only";
   };
   context: {
     enabled: boolean;

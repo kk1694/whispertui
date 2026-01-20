@@ -16,7 +16,7 @@ export const defaults: Config = {
   },
   output: {
     auto_paste: true,
-    paste_method: "wtype",
+    paste_method: "ydotool",
   },
   context: {
     enabled: true,

@@ -2,8 +2,10 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import {
   checkBun,
   checkParecord,
+  checkPaplay,
   checkWlCopy,
   checkWtype,
+  checkYdotool,
   checkNotifySend,
   checkHyprctl,
   checkGroqApiKey,
@@ -46,6 +48,21 @@ describe("Doctor Module", () => {
     });
   });
 
+  describe("checkPaplay", () => {
+    test("returns valid dependency check result", async () => {
+      const result = await checkPaplay();
+
+      expect(result.name).toBe("paplay");
+      expect(result.description).toBe("PulseAudio playback tool (for replay)");
+      expect(result.required).toBe(false); // optional
+      expect(["ok", "missing", "error"]).toContain(result.status);
+
+      if (result.status === "missing") {
+        expect(result.installHint).toContain("pulseaudio");
+      }
+    });
+  });
+
   describe("checkWlCopy", () => {
     test("returns valid dependency check result", async () => {
       const result = await checkWlCopy();
@@ -72,6 +89,22 @@ describe("Doctor Module", () => {
 
       if (result.status === "missing") {
         expect(result.installHint).toContain("wtype");
+      }
+    });
+  });
+
+  describe("checkYdotool", () => {
+    test("returns valid dependency check result", async () => {
+      const result = await checkYdotool();
+
+      expect(result.name).toBe("ydotool");
+      expect(result.description).toBe("Kernel-level keyboard automation (uinput)");
+      expect(result.required).toBe(false); // optional
+      expect(["ok", "missing", "error"]).toContain(result.status);
+
+      if (result.status === "missing") {
+        expect(result.installHint).toContain("ydotool");
+        expect(result.installHint).toContain("systemctl");
       }
     });
   });
@@ -153,15 +186,17 @@ describe("Doctor Module", () => {
     test("returns all dependency checks", async () => {
       const result = await runDoctorChecks();
 
-      expect(result.dependencies).toHaveLength(6);
+      expect(result.dependencies).toHaveLength(8);
       expect(result.envVars).toHaveLength(1);
 
       // Check all expected dependencies are present
       const names = result.dependencies.map((d) => d.name);
       expect(names).toContain("bun");
       expect(names).toContain("parecord");
+      expect(names).toContain("paplay");
       expect(names).toContain("wl-copy");
       expect(names).toContain("wtype");
+      expect(names).toContain("ydotool");
       expect(names).toContain("notify-send");
       expect(names).toContain("hyprctl");
 
