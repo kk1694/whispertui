@@ -49,7 +49,7 @@ export class TyperError extends Error {
 
 /** Options for typing text */
 export interface TypeOptions {
-  /** Delay between keystrokes in milliseconds (default: 12) */
+  /** Delay between keystrokes in milliseconds (default: 0) */
   delay?: number;
   /** Typing method: "wtype", "ydotool" (default: "ydotool") */
   method?: "wtype" | "ydotool";
@@ -131,10 +131,16 @@ async function typeWithWtype(text: string, delay: number): Promise<void> {
 
 /**
  * Type text using ydotool (kernel uinput)
+ * Uses clipboard + Ctrl+V for instant paste instead of character-by-character typing
  */
-async function typeWithYdotool(text: string, delay: number): Promise<void> {
-  // ydotool type --delay <ms> -- "text"
-  const args = ["type", "--delay", String(delay), "--", text];
+async function typeWithYdotool(text: string, _delay: number): Promise<void> {
+  // First, copy text to clipboard using wl-copy
+  await copyToClipboardInternal(text);
+
+  // Then simulate Ctrl+V using ydotool key
+  // Key codes: 29 = Left Ctrl, 47 = V
+  // Format: keycode:pressed (1=down, 0=up)
+  const args = ["key", "29:1", "47:1", "47:0", "29:0"];
 
   return new Promise((resolve, reject) => {
     let proc: ChildProcess;
@@ -179,6 +185,47 @@ async function typeWithYdotool(text: string, delay: number): Promise<void> {
 }
 
 /**
+ * Internal clipboard copy for ydotool paste simulation
+ * Spawns wl-copy detached so forked clipboard server doesn't keep Node.js alive
+ */
+async function copyToClipboardInternal(text: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("wl-copy", ["--"], {
+      stdio: ["pipe", "ignore", "pipe"],
+      detached: true,
+    });
+
+    // Unref the process so it doesn't keep Node.js alive
+    proc.unref();
+
+    let stderrOutput = "";
+
+    proc.stderr?.on("data", (data: Buffer) => {
+      stderrOutput += data.toString();
+    });
+
+    proc.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        reject(new TyperError("wl-copy not found (required for ydotool paste)"));
+      } else {
+        reject(new TyperError(`Clipboard operation failed: ${error.message}`));
+      }
+    });
+
+    proc.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new TyperError(stderrOutput.trim() || `wl-copy exited with code ${code}`));
+      }
+    });
+
+    proc.stdin?.write(text);
+    proc.stdin?.end();
+  });
+}
+
+/**
  * Type text into focused window using specified method
  *
  * @param text - Text to type
@@ -193,7 +240,7 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
     return;
   }
 
-  const delay = options?.delay ?? 12;
+  const delay = options?.delay ?? 0;
   const method = options?.method ?? "ydotool";
 
   if (method === "wtype") {

@@ -83,7 +83,7 @@ export async function launchQuickTranscribe(
   // Handle the result
   if (result?.cancelled) {
     // User cancelled - just exit silently
-    return;
+    process.exit(0);
   }
 
   if (!result?.success || !result.text) {
@@ -114,4 +114,7 @@ export async function launchQuickTranscribe(
     }
     process.exit(1);
   }
+
+  // Force exit - something may be keeping the event loop alive
+  process.exit(0);
 }

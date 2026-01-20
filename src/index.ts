@@ -80,8 +80,8 @@ format = "wav"
 [output]
 # Automatically paste transcribed text
 auto_paste = true
-# Paste method: "wtype" (types into focused window) or "clipboard-only"
-paste_method = "wtype"
+# Paste method: "ydotool" (types via uinput), "wtype" (Wayland), or "clipboard-only"
+paste_method = "ydotool"
 
 [context]
 # Enable context detection (detects code-aware apps)
