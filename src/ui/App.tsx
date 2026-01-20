@@ -107,15 +107,20 @@ export function App({
 
       try {
         await copyToClipboard(entry.text);
-        setCopyMessage("Copied to clipboard!");
-        setTimeout(() => setCopyMessage(null), 2000);
+        // If launched directly in history mode, exit after copying
+        if (initialView === "history") {
+          process.exit(0);
+        } else {
+          setCopyMessage("Copied to clipboard!");
+          setTimeout(() => setCopyMessage(null), 2000);
+        }
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);
         }
       }
     },
-    [skipDaemon]
+    [skipDaemon, initialView, exit]
   );
 
   // Handle daemon response
@@ -320,7 +325,14 @@ export function App({
           entries={historyEntries}
           isActive={true}
           onSelect={handleHistorySelect}
-          onBack={() => setViewMode("main")}
+          onBack={() => {
+            // If launched directly in history mode, exit; otherwise go to main view
+            if (initialView === "history") {
+              process.exit(0);
+            } else {
+              setViewMode("main");
+            }
+          }}
           maxVisible={10}
         />
       </Box>
