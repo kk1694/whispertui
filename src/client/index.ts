@@ -210,7 +210,7 @@ function isPidRunning(pid: number): boolean {
 /**
  * Check if daemon is already starting (PID file exists with running process, but socket not yet ready)
  */
-function isDaemonStarting(): boolean {
+export function isDaemonStarting(): boolean {
   const pidPath = getPidPath();
   if (!existsSync(pidPath)) {
     return false;

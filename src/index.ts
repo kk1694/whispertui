@@ -160,7 +160,7 @@ async function runClientCommand(command: DaemonCommand): Promise<void> {
     // Ensure daemon is running first (auto-start if needed)
     const wasAutoStarted = await ensureDaemonRunning();
     if (wasAutoStarted) {
-      // Silently auto-started - no message needed, but could add one if desired
+      console.log("Starting daemon...");
     }
 
     const response = await sendCommand(command);
@@ -198,7 +198,10 @@ async function runClientCommand(command: DaemonCommand): Promise<void> {
 async function runToggleCommand(): Promise<void> {
   try {
     // Ensure daemon is running first (auto-start if needed)
-    await ensureDaemonRunning();
+    const wasAutoStarted = await ensureDaemonRunning();
+    if (wasAutoStarted) {
+      console.log("Starting daemon...");
+    }
 
     // First check current status
     const statusResponse = await sendCommand("status");
@@ -223,6 +226,35 @@ async function runToggleCommand(): Promise<void> {
       console.error("Error: Daemon is not running and could not be started");
       console.error("Start the daemon with: whispertui daemon");
       process.exit(1);
+    } else if (error instanceof ConnectionTimeoutError) {
+      console.error("Error: Connection to daemon timed out");
+      console.error("The daemon may be unresponsive. Try restarting it.");
+      process.exit(1);
+    } else if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    } else {
+      console.error("Error: Unknown error occurred");
+      process.exit(1);
+    }
+  }
+}
+
+/**
+ * Shutdown command - does NOT auto-start daemon
+ * Returns immediately if daemon is not running
+ */
+async function runShutdownCommand(): Promise<void> {
+  try {
+    const response = await sendCommand("shutdown");
+    console.log(formatResponse(response));
+    if (!response.success) {
+      process.exit(1);
+    }
+  } catch (error) {
+    if (error instanceof DaemonNotRunningError) {
+      console.log("Daemon is not running");
+      return;
     } else if (error instanceof ConnectionTimeoutError) {
       console.error("Error: Connection to daemon timed out");
       console.error("The daemon may be unresponsive. Try restarting it.");
@@ -331,7 +363,7 @@ async function main(): Promise<void> {
       await runClientCommand("status");
       break;
     case "shutdown":
-      await runClientCommand("shutdown");
+      await runShutdownCommand();
       break;
     case "daemon":
       await runDaemon();

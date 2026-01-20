@@ -7,7 +7,7 @@
 import React from "react";
 import { render } from "ink";
 import { App } from "./App.tsx";
-import { ensureDaemonRunning, DaemonStartError } from "../client/index.ts";
+import { isDaemonRunning, isDaemonStarting, spawnDaemon } from "../client/index.ts";
 
 export interface TuiOptions {
   /** Skip daemon auto-start (for testing) */
@@ -20,30 +20,21 @@ export interface TuiOptions {
 export async function launchTui(options: TuiOptions = {}): Promise<void> {
   const { skipDaemon = false } = options;
 
-  // Ensure daemon is running before launching TUI
+  // Try to auto-start daemon in background (non-blocking)
   if (!skipDaemon) {
-    try {
-      const wasAutoStarted = await ensureDaemonRunning();
-      if (wasAutoStarted) {
-        // Brief pause to let daemon stabilize
-        await new Promise((resolve) => setTimeout(resolve, 100));
+    isDaemonRunning().then((running) => {
+      if (!running && !isDaemonStarting()) {
+        try {
+          spawnDaemon();
+        } catch {
+          // Ignore - TUI will show disconnected state
+        }
       }
-    } catch (error) {
-      if (error instanceof DaemonStartError) {
-        console.error(`Error: ${error.message}`);
-        console.error("Try starting the daemon manually with: whispertui daemon");
-        process.exit(1);
-      }
-      throw error;
-    }
+    });
   }
 
-  // Render the Ink app
-  const { waitUntilExit } = render(
-    <App skipDaemon={skipDaemon} />
-  );
-
-  // Wait for the app to exit
+  // Render TUI immediately
+  const { waitUntilExit } = render(<App skipDaemon={skipDaemon} />);
   await waitUntilExit();
 }
 
