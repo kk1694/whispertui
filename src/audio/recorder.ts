@@ -7,6 +7,7 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, unlinkSync, statSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { join } from "node:path";
 import { getCacheDir, ensureDir } from "../config/paths.ts";
 import type { Config } from "../config/schema.ts";
@@ -49,6 +50,50 @@ export class RecordingError extends Error {
 
 /** Default max recording duration in seconds (5 minutes) */
 const MAX_RECORDING_DURATION = 300;
+
+/**
+ * Verify WAV file is complete by checking RIFF header size matches actual file size.
+ * RIFF format: 4 bytes 'RIFF' + 4 bytes (fileSize-8) + 4 bytes 'WAVE'
+ */
+async function verifyWavComplete(path: string): Promise<boolean> {
+  try {
+    const file = await open(path, "r");
+    try {
+      const header = Buffer.alloc(12);
+      const { bytesRead } = await file.read(header, 0, 12, 0);
+      if (bytesRead < 12) return false;
+
+      if (header.toString("ascii", 0, 4) !== "RIFF") return false;
+      if (header.toString("ascii", 8, 12) !== "WAVE") return false;
+
+      const declaredSize = header.readUInt32LE(4) + 8; // RIFF size + 8
+      const stat = await file.stat();
+      return stat.size >= declaredSize;
+    } finally {
+      await file.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+async function ensureWavComplete(path: string, maxWaitMs = 500): Promise<void> {
+  // Force filesystem flush
+  const file = await open(path, "r");
+  try {
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+
+  // Poll until WAV header indicates completion
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    if (await verifyWavComplete(path)) return;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  // Timeout reached - proceed anyway, transcriber will catch real issues
+}
 
 /**
  * Audio Recorder using parecord
@@ -201,9 +246,7 @@ export class AudioRecorder {
       proc.on("exit", async () => {
         this.cleanup();
 
-        // Wait for filesystem to flush the file
-        // This prevents race condition where parecord exits before all data is written
-        await new Promise((r) => setTimeout(r, 100));
+        await ensureWavComplete(audioPath);
 
         // Verify the file exists and has content
         if (!existsSync(audioPath)) {
