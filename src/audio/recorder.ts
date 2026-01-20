@@ -198,8 +198,12 @@ export class AudioRecorder {
       const proc = this.process!;
 
       // Set up exit handler before sending signal
-      proc.on("exit", () => {
+      proc.on("exit", async () => {
         this.cleanup();
+
+        // Wait for filesystem to flush the file
+        // This prevents race condition where parecord exits before all data is written
+        await new Promise((r) => setTimeout(r, 100));
 
         // Verify the file exists and has content
         if (!existsSync(audioPath)) {
