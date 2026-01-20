@@ -23,7 +23,7 @@ import {
   listHistory,
   type HistoryEntry,
 } from "./history/index.ts";
-import { launchTui } from "./ui/index.tsx";
+import { launchTui, launchQuickTranscribe } from "./ui/index.tsx";
 import { runDoctorChecks, formatDoctorResult } from "./doctor/index.ts";
 
 const VERSION = "0.1.0";
@@ -44,6 +44,7 @@ Commands:
   config --edit Open config file in $EDITOR
   history       List recent transcriptions
   tui           Launch interactive TUI
+  quick         Quick transcribe: record, transcribe, paste into previous window
   doctor        Check system dependencies
 
 Options:
@@ -433,6 +434,9 @@ async function main(): Promise<void> {
     }
     case "tui":
       await launchTui();
+      break;
+    case "quick":
+      await launchQuickTranscribe();
       break;
     case "doctor": {
       const doctorResult = await runDoctorChecks();

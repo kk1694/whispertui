@@ -55,17 +55,17 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
 
     // wtype arguments
     // -d: delay between keystrokes in milliseconds
-    // Text is passed via stdin with - argument
+    // Text is passed as command-line argument (stdin mode drops spaces)
     const args: string[] = [];
     if (delay > 0) {
       args.push("-d", delay.toString());
     }
-    // Use stdin mode by passing "-" as the text source
-    args.push("-");
+    // Use -- to ensure text is treated as literal (not parsed as flags)
+    args.push("--", text);
 
     try {
       proc = spawn("wtype", args, {
-        stdio: ["pipe", "ignore", "pipe"],
+        stdio: ["ignore", "ignore", "pipe"],
       });
     } catch (error) {
       const err = error as NodeJS.ErrnoException;
@@ -99,14 +99,6 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
         reject(new TyperError(errorMsg));
       }
     });
-
-    // Write text to stdin and close
-    if (proc.stdin) {
-      proc.stdin.write(text);
-      proc.stdin.end();
-    } else {
-      reject(new TyperError("Failed to write to wtype stdin"));
-    }
   });
 }
 

@@ -49,3 +49,5 @@ export async function launchTui(options: TuiOptions = {}): Promise<void> {
 
 export { App } from "./App.tsx";
 export { RecordingIndicator } from "./components/RecordingIndicator.tsx";
+export { QuickApp } from "./QuickApp.tsx";
+export { launchQuickTranscribe } from "./quick.tsx";

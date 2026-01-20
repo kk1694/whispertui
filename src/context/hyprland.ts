@@ -252,3 +252,28 @@ export function extractContextConfig(config: {
 export function createContextDetector(config: ContextConfig): ContextDetector {
   return new ContextDetector(config);
 }
+
+/**
+ * Return focus to a specific window by its address
+ *
+ * @param address - The window address (hex string, with or without 0x prefix)
+ * @returns true if focus was successfully returned, false otherwise
+ */
+export async function returnFocusToWindow(address: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Ensure address has 0x prefix
+    const formattedAddress = address.startsWith("0x") ? address : `0x${address}`;
+
+    const proc = spawn("hyprctl", ["dispatch", "focuswindow", `address:${formattedAddress}`], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    proc.on("error", () => {
+      resolve(false);
+    });
+
+    proc.on("exit", (code) => {
+      resolve(code === 0);
+    });
+  });
+}
