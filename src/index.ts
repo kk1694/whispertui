@@ -467,9 +467,13 @@ async function main(): Promise<void> {
     case "tui":
       await launchTui();
       break;
-    case "quick":
-      await launchQuickTranscribe();
+    case "quick": {
+      // Parse --return-to argument for window address
+      const returnToIdx = args.indexOf("--return-to");
+      const returnToAddress = returnToIdx !== -1 ? args[returnToIdx + 1] : undefined;
+      await launchQuickTranscribe({ returnToAddress });
       break;
+    }
     case "doctor": {
       const doctorResult = await runDoctorChecks();
       console.log(formatDoctorResult(doctorResult));

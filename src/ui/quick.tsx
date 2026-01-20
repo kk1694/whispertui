@@ -15,13 +15,15 @@ import { typeText } from "../output/typer.ts";
 export interface QuickTranscribeOptions {
   /** Skip daemon auto-start (for testing) */
   skipDaemon?: boolean;
+  /** Window address to return focus to after transcription */
+  returnToAddress?: string;
 }
 
 /**
  * Launch the quick transcribe TUI
  *
  * Flow:
- * 1. Capture current focused window address
+ * 1. Use provided window address (or try to detect current)
  * 2. Ensure daemon is running
  * 3. Launch minimal TUI (auto-starts recording)
  * 4. On completion: restore focus and type text
@@ -29,17 +31,19 @@ export interface QuickTranscribeOptions {
 export async function launchQuickTranscribe(
   options: QuickTranscribeOptions = {}
 ): Promise<void> {
-  const { skipDaemon = false } = options;
+  const { skipDaemon = false, returnToAddress } = options;
 
-  // Capture the current focused window before we steal focus
-  let originalWindowAddress: string | null = null;
-  try {
-    const activeWindow = await getActiveWindow();
-    if (activeWindow?.address) {
-      originalWindowAddress = activeWindow.address;
+  // Use provided address or try to detect (detection won't work when launched in a terminal)
+  let originalWindowAddress: string | null = returnToAddress ?? null;
+  if (!originalWindowAddress) {
+    try {
+      const activeWindow = await getActiveWindow();
+      if (activeWindow?.address) {
+        originalWindowAddress = activeWindow.address;
+      }
+    } catch {
+      // Hyprctl not available - we'll still work, just can't restore focus
     }
-  } catch {
-    // Hyprctl not available - we'll still work, just can't restore focus
   }
 
   // Ensure daemon is running before launching TUI
@@ -91,14 +95,14 @@ export async function launchQuickTranscribe(
   }
 
   // Success! Restore focus and type text
-  // Small delay to let the terminal close
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  // Wait for the terminal to fully close
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   // Restore focus to original window
   if (originalWindowAddress) {
     await returnFocusToWindow(originalWindowAddress);
-    // Small delay to let focus settle
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Wait for focus to settle
+    await new Promise((resolve) => setTimeout(resolve, 150));
   }
 
   // Type the transcribed text

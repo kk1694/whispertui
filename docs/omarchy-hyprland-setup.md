@@ -98,7 +98,25 @@ whispertui start
 whispertui stop
 ```
 
-## 6. Configure Hyprland Keybindings
+## 6. Start Daemon on Login
+
+WhisperTUI uses a background daemon to handle recording and transcription. Start it automatically when Hyprland launches by adding to `~/.config/hypr/autostart.conf` (or `hyprland.conf`):
+
+```conf
+exec-once = /home/your-username/.local/bin/whispertui daemon
+```
+
+Use the full path since Hyprland's startup environment may not include `~/.local/bin` in PATH.
+
+This ensures the daemon is always running and ready for keyboard shortcuts.
+
+To start it manually for the current session:
+
+```bash
+whispertui daemon &
+```
+
+## 7. Configure Hyprland Keybindings
 
 Add the following to `~/.config/hypr/bindings.conf`:
 
@@ -132,7 +150,7 @@ grep -E "SUPER.*,\s*[RH]," ~/.config/hypr/bindings.conf
 
 If there are conflicts, either remove the existing binding or choose different keys for WhisperTUI.
 
-## 7. Apply Changes
+## 8. Apply Changes
 
 Reload Hyprland to apply the new bindings:
 
@@ -234,10 +252,12 @@ The command isn't in your PATH. Try:
 
 | Command | Description |
 |---------|-------------|
+| `whispertui daemon` | Start daemon in foreground |
 | `whispertui start` | Start recording |
 | `whispertui stop` | Stop and transcribe |
 | `whispertui toggle` | Toggle recording state |
 | `whispertui status` | Show current status |
+| `whispertui shutdown` | Stop the daemon |
 | `whispertui history` | List recent transcriptions |
 | `whispertui tui` | Interactive history browser |
 | `whispertui doctor` | Check dependencies |
