@@ -3,9 +3,15 @@
  *
  * Types text into the focused window via wtype (Wayland).
  * Falls back to clipboard-only when wtype fails.
+ *
+ * Note: Uses temp file + shell pipe to work around Bun compiled binary issue
+ * where spaces are dropped when passing text as spawn() arguments.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
+import { writeFileSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 /** Error when wtype binary is not found */
 export class WtypeNotFoundError extends Error {
@@ -37,6 +43,9 @@ export interface TypeOptions {
 /**
  * Type text into focused window using wtype
  *
+ * Uses temp file + shell pipe to work around Bun compiled binary issue
+ * where spaces are dropped when passing text as spawn() arguments.
+ *
  * @param text - Text to type
  * @param options - Typing options
  * @throws {WtypeNotFoundError} If wtype is not installed
@@ -50,30 +59,37 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
 
   const delay = options?.delay ?? 0;
 
+  // Write text to temp file to avoid spawn argument issues in compiled Bun binaries
+  const tempFile = join(tmpdir(), `wtype-${process.pid}-${Date.now()}.txt`);
+
+  try {
+    writeFileSync(tempFile, text, "utf-8");
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    throw new TyperError(`Failed to write temp file: ${err.message}`);
+  }
+
+  // Build shell command to pipe temp file to wtype stdin
+  const delayArg = delay > 0 ? `-d ${delay} ` : "";
+  const cmd = `cat "${tempFile}" | wtype ${delayArg}-`;
+
   return new Promise((resolve, reject) => {
     let proc: ChildProcess;
 
-    // wtype arguments
-    // -d: delay between keystrokes in milliseconds
-    // Text is passed as command-line argument (stdin mode drops spaces)
-    const args: string[] = [];
-    if (delay > 0) {
-      args.push("-d", delay.toString());
-    }
-    // Use -- to ensure text is treated as literal (not parsed as flags)
-    args.push("--", text);
-
     try {
-      proc = spawn("wtype", args, {
+      proc = spawn("sh", ["-c", cmd], {
         stdio: ["ignore", "ignore", "pipe"],
       });
     } catch (error) {
+      // Clean up temp file
+      try { unlinkSync(tempFile); } catch {}
+
       const err = error as NodeJS.ErrnoException;
       if (err.code === "ENOENT") {
         reject(new WtypeNotFoundError());
         return;
       }
-      reject(new TyperError(`Failed to start wtype: ${err.message}`));
+      reject(new TyperError(`Failed to start shell: ${err.message}`));
       return;
     }
 
@@ -84,6 +100,9 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
     });
 
     proc.on("error", (error: NodeJS.ErrnoException) => {
+      // Clean up temp file
+      try { unlinkSync(tempFile); } catch {}
+
       if (error.code === "ENOENT") {
         reject(new WtypeNotFoundError());
       } else {
@@ -92,11 +111,19 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
     });
 
     proc.on("exit", (code, signal) => {
+      // Clean up temp file
+      try { unlinkSync(tempFile); } catch {}
+
       if (code === 0) {
         resolve();
       } else {
-        const errorMsg = stderrOutput.trim() || `wtype exited with code ${code}, signal ${signal}`;
-        reject(new TyperError(errorMsg));
+        // Check if wtype was not found (shell returns 127 for command not found)
+        if (code === 127 && stderrOutput.includes("wtype")) {
+          reject(new WtypeNotFoundError());
+        } else {
+          const errorMsg = stderrOutput.trim() || `wtype exited with code ${code}, signal ${signal}`;
+          reject(new TyperError(errorMsg));
+        }
       }
     });
   });
