@@ -21,6 +21,12 @@ import {
 import type { DaemonCommand } from "./daemon/server.ts";
 import { launchTui, launchQuickTranscribe } from "./ui/index.tsx";
 import { runDoctorChecks, formatDoctorResult } from "./doctor/index.ts";
+import {
+  playLatestRecording,
+  NoRecordingsFoundError,
+  PaplayNotFoundError,
+  PlaybackError,
+} from "./audio/player.ts";
 
 const VERSION = "0.1.0";
 
@@ -42,6 +48,7 @@ Commands:
   tui           Launch interactive TUI
   quick         Quick transcribe: record, transcribe, paste into previous window
   doctor        Check system dependencies
+  replay        Play back the most recent recording
 
 Options:
   --help, -h     Show this help message
@@ -435,6 +442,27 @@ async function main(): Promise<void> {
       // Exit with non-zero if required dependencies are missing
       if (!doctorResult.requiredOk) {
         process.exit(1);
+      }
+      break;
+    }
+    case "replay":
+    case "play": {
+      try {
+        const audioPath = await playLatestRecording();
+        console.log(`Playing: ${audioPath}`);
+      } catch (error) {
+        if (error instanceof NoRecordingsFoundError) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        } else if (error instanceof PaplayNotFoundError) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+        } else if (error instanceof PlaybackError) {
+          console.error(`Playback error: ${error.message}`);
+          process.exit(1);
+        } else {
+          throw error;
+        }
       }
       break;
     }

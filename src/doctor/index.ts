@@ -144,6 +144,47 @@ export async function checkParecord(): Promise<DependencyCheck> {
 }
 
 /**
+ * Check if paplay is available and get its version
+ */
+export async function checkPaplay(): Promise<DependencyCheck> {
+  const result = await runCommand("paplay", ["--version"]);
+
+  if (result.code === null) {
+    return {
+      name: "paplay",
+      description: "PulseAudio playback tool (for replay)",
+      status: "missing",
+      installHint:
+        "Arch: pacman -S pulseaudio\n" +
+        "Ubuntu/Debian: apt install pulseaudio-utils\n" +
+        "Fedora: dnf install pulseaudio-utils",
+      required: false,
+    };
+  }
+
+  if (result.code === 0) {
+    // paplay --version outputs "pacat X.Y.Z" on first line (same as parecord)
+    const firstLine = result.stdout.split("\n")[0] ?? "";
+    const version = firstLine.replace(/^pacat\s+/, "");
+    return {
+      name: "paplay",
+      description: "PulseAudio playback tool (for replay)",
+      status: "ok",
+      version,
+      required: false,
+    };
+  }
+
+  return {
+    name: "paplay",
+    description: "PulseAudio playback tool (for replay)",
+    status: "error",
+    errorMessage: result.stderr || `Exit code ${result.code}`,
+    required: false,
+  };
+}
+
+/**
  * Check if wl-copy is available and get its version
  */
 export async function checkWlCopy(): Promise<DependencyCheck> {
@@ -326,16 +367,17 @@ export function checkGroqApiKey(): EnvVarCheck {
  */
 export async function runDoctorChecks(): Promise<DoctorResult> {
   // Run all dependency checks in parallel
-  const [bun, parecord, wlCopy, wtype, notifySend, hyprctl] = await Promise.all([
+  const [bun, parecord, paplay, wlCopy, wtype, notifySend, hyprctl] = await Promise.all([
     checkBun(),
     checkParecord(),
+    checkPaplay(),
     checkWlCopy(),
     checkWtype(),
     checkNotifySend(),
     checkHyprctl(),
   ]);
 
-  const dependencies = [bun, parecord, wlCopy, wtype, notifySend, hyprctl];
+  const dependencies = [bun, parecord, paplay, wlCopy, wtype, notifySend, hyprctl];
   const envVars = [checkGroqApiKey()];
 
   const allOk =
