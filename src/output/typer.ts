@@ -38,6 +38,8 @@ export class TyperError extends Error {
 export interface TypeOptions {
   /** Delay between keystrokes in milliseconds (default: 0) */
   delay?: number;
+  /** Pre-existing file to pipe from (avoids temp file creation) */
+  sourceFile?: string;
 }
 
 /**
@@ -58,20 +60,29 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
   }
 
   const delay = options?.delay ?? 0;
+  const sourceFile = options?.sourceFile;
 
-  // Write text to temp file to avoid spawn argument issues in compiled Bun binaries
-  const tempFile = join(tmpdir(), `wtype-${process.pid}-${Date.now()}.txt`);
+  // Use provided file or create temp file
+  let textFile: string;
+  let shouldCleanup = false;
 
-  try {
-    writeFileSync(tempFile, text, "utf-8");
-  } catch (error) {
-    const err = error as NodeJS.ErrnoException;
-    throw new TyperError(`Failed to write temp file: ${err.message}`);
+  if (sourceFile) {
+    textFile = sourceFile;
+  } else {
+    // Write text to temp file to avoid spawn argument issues in compiled Bun binaries
+    textFile = join(tmpdir(), `wtype-${process.pid}-${Date.now()}.txt`);
+    try {
+      writeFileSync(textFile, text, "utf-8");
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      throw new TyperError(`Failed to write temp file: ${err.message}`);
+    }
+    shouldCleanup = true;
   }
 
-  // Build shell command to pipe temp file to wtype stdin
+  // Build shell command to pipe file to wtype stdin
   const delayArg = delay > 0 ? `-d ${delay} ` : "";
-  const cmd = `cat "${tempFile}" | wtype ${delayArg}-`;
+  const cmd = `cat "${textFile}" | wtype ${delayArg}-`;
 
   return new Promise((resolve, reject) => {
     let proc: ChildProcess;
@@ -81,8 +92,10 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
         stdio: ["ignore", "ignore", "pipe"],
       });
     } catch (error) {
-      // Clean up temp file
-      try { unlinkSync(tempFile); } catch {}
+      // Clean up temp file only if we created it
+      if (shouldCleanup) {
+        try { unlinkSync(textFile); } catch {}
+      }
 
       const err = error as NodeJS.ErrnoException;
       if (err.code === "ENOENT") {
@@ -100,8 +113,10 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
     });
 
     proc.on("error", (error: NodeJS.ErrnoException) => {
-      // Clean up temp file
-      try { unlinkSync(tempFile); } catch {}
+      // Clean up temp file only if we created it
+      if (shouldCleanup) {
+        try { unlinkSync(textFile); } catch {}
+      }
 
       if (error.code === "ENOENT") {
         reject(new WtypeNotFoundError());
@@ -111,8 +126,10 @@ export async function typeText(text: string, options?: TypeOptions): Promise<voi
     });
 
     proc.on("exit", (code, signal) => {
-      // Clean up temp file
-      try { unlinkSync(tempFile); } catch {}
+      // Clean up temp file only if we created it
+      if (shouldCleanup) {
+        try { unlinkSync(textFile); } catch {}
+      }
 
       if (code === 0) {
         resolve();
